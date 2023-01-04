@@ -2,7 +2,7 @@ module github.com/th2-net/th2-box-template-go
 
 go 1.19
 
-replace github.com/th2-net/th2-common-go => ../th2-common-go
+// replace github.com/th2-net/th2-common-go => ../th2-common-go
 
 require (
 	github.com/google/uuid v1.3.0
