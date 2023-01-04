@@ -28,7 +28,7 @@ jobs:
         id: ver
         uses: zoexx/github-action-json-file-properties@1.0.4
         with:
-          path: "package_info.json"
+          file_path: "package_info.json"
 
       - name: Build custom release version
         id: release_ver
