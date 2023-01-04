@@ -1,3 +1,6 @@
 FROM golang:1.19
-WORKDIR /src
-RUN go run .
+RUN mkdir /app
+ADD . /app
+WORKDIR /app/src
+RUN go build -o .
+CMD ["/src"]
