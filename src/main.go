@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
+	"os/signal"
 
+	box "github.com/th2-net/th2-box-template-go/src/boxConfiguration"
 	"github.com/th2-net/th2-common-go/schema/factory"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules"
+	"github.com/th2-net/th2-common-go/schema/queue/MQcommon"
 	"github.com/th2-net/th2-common-go/schema/queue/message"
 )
 
@@ -17,8 +19,8 @@ func main() {
 		panic(err)
 	}
 
-	boxConf := BoxConfiguration{messageType: "Batch"}
-	messageType := boxConf.messageType
+	boxConf := box.BoxConfiguration{MessageType: "Batch"}
+	messageType := boxConf.MessageType
 
 	module, err := rabbitmq.ModuleID.GetModule(newFactory)
 	if err != nil {
@@ -33,13 +35,16 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error occured when subscribing")
 	}
-	var wg sync.WaitGroup
-	wg.Add(1)
 
-	wg.Wait()
-	// Listen for messages for 1000 seconds
-	// time.Sleep(1000 * time.Second)
+	// Start listening for shutdown signal
+	shutdown(&monitor, module)
+}
 
+func shutdown(monitor *MQcommon.Monitor, module *rabbitmq.RabbitMQModule) {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	<-ch
+	log.Println("Shutting Down")
+	(*monitor).Unsubscribe()
 	module.Close()
-	monitor.Unsubscribe()
 }

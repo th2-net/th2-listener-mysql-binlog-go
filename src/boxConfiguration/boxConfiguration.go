@@ -1,5 +1,5 @@
-package main
+package box
 
 type BoxConfiguration struct {
-	messageType string
+	MessageType string
 }
