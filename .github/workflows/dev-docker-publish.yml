@@ -40,7 +40,7 @@ jobs:
       - name: Show custom release version
         run: echo ${{ steps.release_ver.outputs.value }}
 
-      # Build and publish image
+      # Build and publish image 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
