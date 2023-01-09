@@ -9,7 +9,7 @@ import (
 
 	box "github.com/th2-net/th2-box-template-go/src/boxConfiguration"
 	"github.com/th2-net/th2-common-go/schema/factory"
-	rabbitmq "github.com/th2-net/th2-common-go/schema/modules"
+	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
 	"github.com/th2-net/th2-common-go/schema/queue/message"
 )
 
@@ -18,7 +18,7 @@ func main() {
 	var closingFunctions []func()
 	wait := shutdown(&closingFunctions)
 
-	newFactory := factory.NewFactory(os.Args)
+	newFactory := factory.NewFactory()
 	if err := newFactory.Register(rabbitmq.NewRabbitMQModule); err != nil {
 		panic(err)
 	}
