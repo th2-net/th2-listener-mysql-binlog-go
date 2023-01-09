@@ -5,21 +5,28 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 
 	box "github.com/th2-net/th2-box-template-go/src/boxConfiguration"
 	"github.com/th2-net/th2-common-go/schema/factory"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules"
-	"github.com/th2-net/th2-common-go/schema/queue/MQcommon"
 	"github.com/th2-net/th2-common-go/schema/queue/message"
 )
 
 func main() {
+
+	var closingFunctions []func()
+	wait := shutdown(&closingFunctions)
+
 	newFactory := factory.NewFactory(os.Args)
 	if err := newFactory.Register(rabbitmq.NewRabbitMQModule); err != nil {
 		panic(err)
 	}
 
-	boxConf := box.BoxConfiguration{MessageType: "Batch"}
+	var customConfig map[string]string
+	newFactory.GetCustomConfiguration(&customConfig)
+
+	boxConf := box.BoxConfiguration{MessageType: customConfig["messageType"]}
 	messageType := boxConf.MessageType
 
 	module, err := rabbitmq.ModuleID.GetModule(newFactory)
@@ -35,16 +42,30 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error occured when subscribing")
 	}
+	closingFunctions = append(closingFunctions, func() { monitor.Unsubscribe() })
 
 	// Start listening for shutdown signal
-	shutdown(&monitor, module)
+	<-wait
 }
 
-func shutdown(monitor *MQcommon.Monitor, module *rabbitmq.RabbitMQModule) {
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
-	<-ch
-	log.Println("Shutting Down")
-	(*monitor).Unsubscribe()
-	module.Close()
+func shutdown(closes *[]func()) <-chan bool {
+	wait := make(chan bool)
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, os.Interrupt)
+		<-ch
+		log.Println("Shutting Down")
+		var wg sync.WaitGroup
+		for _, closeFunc := range *closes {
+			wg.Add(1)
+			clsFunc := closeFunc
+			go func() {
+				defer wg.Done()
+				clsFunc()
+			}()
+		}
+		wg.Wait()
+		close(wait)
+	}()
+	return wait
 }
