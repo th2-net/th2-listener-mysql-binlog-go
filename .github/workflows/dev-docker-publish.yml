@@ -32,7 +32,7 @@ jobs:
 
       - name: Build custom release version
         id: release_ver
-        run: echo value="${{ steps.ver.outputs.release_version }}-${{ steps.branch.outputs.branch_name }}-${{ github.run_id }}-${{ steps.sha.outputs.sha_short }}" >> $GITHUB_OUTPUT
+        run: echo value="${{ go list -f '{{.Version}}' -m github.com/th2-net/th2-box-template-go@master }}-${{ steps.branch.outputs.branch_name }}-${{ github.run_id }}-${{ steps.sha.outputs.sha_short }}" >> $GITHUB_OUTPUT
 
       - name: Show custom release version
         run: echo ${{ steps.release_ver.outputs.value }}
