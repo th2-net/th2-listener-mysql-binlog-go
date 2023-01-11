@@ -22,6 +22,7 @@ func main() {
 	if err := newFactory.Register(rabbitmq.NewRabbitMQModule); err != nil {
 		panic(err)
 	}
+	closingFunctions = append(closingFunctions, func() { newFactory.Close() })
 
 	var customConfig map[string]string
 	newFactory.GetCustomConfiguration(&customConfig)
