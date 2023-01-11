@@ -12,5 +12,6 @@ deps: clean-deps
 
 	go get -u -t $(TH2_COMMON_GO_URL)
 	sleep 4
-	@cd $(subst \,/, $(shell go list -m -f '{{.Dir}}' $(TH2_COMMON_GO_URL))) && echo $(shell ls)
+	go list -m -f '{{.Dir}}' $(TH2_COMMON_GO_URL)
+	ls $(shell go list -m -f '{{.Dir}}' $(TH2_COMMON_GO_URL))
 	@cd $(subst \,/, $(shell go list -m -f '{{.Dir}}' $(TH2_COMMON_GO_URL))) && make deps TARGET_DIR=$(TARGET_DIR)
