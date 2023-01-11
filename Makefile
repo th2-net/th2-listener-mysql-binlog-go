@@ -11,5 +11,5 @@ deps: clean-deps
 	go work init .
 
 	go get -u -t $(TH2_COMMON_GO_URL)
-	sleep 1
+	sleep 4
 	@cd $(shell go list -m -f '{{.Dir}}' $(TH2_COMMON_GO_URL)) && make generate-module TARGET_DIR=$(TARGET_DIR)
