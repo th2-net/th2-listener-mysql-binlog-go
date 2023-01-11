@@ -1,8 +1,9 @@
 package main
 
 import (
+	p_buff "th2-grpc/th2_grpc_common"
+
 	"github.com/google/uuid"
-	p_buff "github.com/th2-net/th2-common-go/th2_grpc/th2_grpc_common"
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 

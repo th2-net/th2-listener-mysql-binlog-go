@@ -3,8 +3,9 @@ package main
 import (
 	"log"
 
+	p_buff "th2-grpc/th2_grpc_common"
+
 	"github.com/th2-net/th2-common-go/schema/queue/MQcommon"
-	p_buff "github.com/th2-net/th2-common-go/th2_grpc/th2_grpc_common"
 )
 
 type MessageTypeListener struct {

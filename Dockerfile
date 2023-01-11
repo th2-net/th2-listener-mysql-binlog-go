@@ -3,6 +3,6 @@ RUN mkdir /app
 ADD . /app
 WORKDIR /app
 RUN apt update && apt install -y make
-RUN make deps
+RUN make generate-module
 RUN go build -o main src/*.go
 CMD ["/app/main"]

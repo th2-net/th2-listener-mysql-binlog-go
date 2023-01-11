@@ -21,6 +21,10 @@ github.com/th2-net/th2-common-go v0.0.0-20230110122252-ee38a618e8b1 h1:nNZytGhN1
 github.com/th2-net/th2-common-go v0.0.0-20230110122252-ee38a618e8b1/go.mod h1:onqkGwnqGkNdd+lnLhSuG8QG3SV3FpA4iTfc5cMH1Ec=
 github.com/th2-net/th2-common-go v0.0.2-0.20230110165644-6f07de28ebc7 h1:lglPMXeABfWd9Zlrk0bgZHnsgA6OZgG/p8fOimajqx0=
 github.com/th2-net/th2-common-go v0.0.2-0.20230110165644-6f07de28ebc7/go.mod h1:PO/rJO0tfHHOJNeIk5O8xmOVPj4NhJKMD4hBHQm0oPQ=
+github.com/th2-net/th2-common-go v0.0.2-0.20230111003843-62658d92448d h1:2WkdNLPRUk0QpMnE6Ism80e9b/wsGUb77xHA1niNTHg=
+github.com/th2-net/th2-common-go v0.0.2-0.20230111003843-62658d92448d/go.mod h1:PO/rJO0tfHHOJNeIk5O8xmOVPj4NhJKMD4hBHQm0oPQ=
+github.com/th2-net/th2-grpc-common v0.0.0-20230110172250-f653e1acb2db h1:Q/SXRcJkXF7GPMdl4Yi420cKp6iItZVl5ntqHBDI3bo=
+github.com/th2-net/th2-grpc-common v0.0.0-20230110172250-f653e1acb2db/go.mod h1:WiSMBNNRWvTHgcRQCyW2tm0cw8RYtqhI88BOvnhfp/0=
 golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f h1:v4INt8xihDGvnrfjMDVXGxw9wrfxYyCjk0KbXjhR55s=

@@ -2,11 +2,9 @@ module github.com/th2-net/th2-box-template-go
 
 go 1.19
 
-// replace github.com/th2-net/th2-common-go => ../th2-common-go
-
 require (
 	github.com/google/uuid v1.3.0
-	github.com/th2-net/th2-common-go v0.0.2-0.20230110165644-6f07de28ebc7
+	github.com/th2-net/th2-common-go v0.0.2-0.20230111003843-62658d92448d
 	google.golang.org/protobuf v1.28.1
 )
 
@@ -16,5 +14,6 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/rs/zerolog v1.28.0 // indirect
 	github.com/streadway/amqp v1.0.0 // indirect
+	github.com/th2-net/th2-grpc-common v0.0.0-20230110172250-f653e1acb2db // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 )
