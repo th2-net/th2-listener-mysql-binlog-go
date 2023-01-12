@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"sync"
 
-	box "github.com/th2-net/th2-box-template-go/src/boxConfiguration"
 	"github.com/th2-net/th2-common-go/schema/factory"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
 	"github.com/th2-net/th2-common-go/schema/queue/message"
@@ -27,7 +26,7 @@ func main() {
 	var customConfig map[string]string
 	newFactory.GetCustomConfiguration(&customConfig)
 
-	boxConf := box.BoxConfiguration{MessageType: customConfig["messageType"]}
+	boxConf := BoxConfiguration{MessageType: customConfig["messageType"]}
 	messageType := boxConf.MessageType
 
 	module, err := rabbitmq.ModuleID.GetModule(newFactory)

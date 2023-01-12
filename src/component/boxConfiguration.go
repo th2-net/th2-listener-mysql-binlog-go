@@ -1,4 +1,4 @@
-package box
+package component
 
 type BoxConfiguration struct {
 	MessageType string

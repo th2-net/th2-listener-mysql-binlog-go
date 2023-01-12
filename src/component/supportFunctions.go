@@ -1,4 +1,4 @@
-package main
+package component
 
 import (
 	p_buff "th2-grpc/th2_grpc_common"
