@@ -31,14 +31,14 @@ prepare-grpc-module: clean-grpc-module
 	- go work init
 	go work use ./$(MODULE_DIR)
 
-copy-grpc-files: prepare-grpc-module
-	cp -r --no-preserve=mode,ownership $(shell go list -m -f '{{.Dir}}' $(TH2_GRPC_COMMON_URL))/$(SRC_MAIN_PROTO_DIR)/* $(MODULE_DIR)
-
-genrate-grpc-files: copy-grpc-files configure-go
-	protoc --proto_path=$(MODULE_DIR) \
-			--go_out=$(MODULE_DIR) --go_opt=paths=source_relative \
-			--go-grpc_out=$(MODULE_DIR) --go-grpc_opt=paths=source_relative \
-			$(shell find $(MODULE_DIR) -name '*.proto' )
+genrate-grpc-files: prepare-grpc-module configure-go
+	protoc \
+		--go_out=$(MODULE_DIR) \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=$(MODULE_DIR) \
+		--go-grpc_opt=paths=source_relative \
+		--proto_path=$(shell go list -m -f '{{.Dir}}' $(TH2_GRPC_COMMON_URL))/$(SRC_MAIN_PROTO_DIR) \
+		$(shell find $(shell go list -m -f '{{.Dir}}' $(TH2_GRPC_COMMON_URL))/$(SRC_MAIN_PROTO_DIR) -name '*.proto' )
 
 clean-main-module: clean-grpc-module
 	-rm go.work go.work.sum
