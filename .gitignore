@@ -14,5 +14,11 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-proto/
 th2-grpc/
+go.mod
+go.sum
+go.work
+go.work.sum
+
+main
+main.go
