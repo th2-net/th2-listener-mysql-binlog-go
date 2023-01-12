@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -9,6 +10,7 @@ import (
 	component "github.com/th2-net/th2-box-template-go/component"
 	"github.com/th2-net/th2-common-go/schema/factory"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
+	"github.com/th2-net/th2-common-go/schema/queue/message"
 )
 
 func main() {
@@ -28,20 +30,20 @@ func main() {
 	boxConf := component.BoxConfiguration{MessageType: customConfig["messageType"]}
 	messageType := boxConf.MessageType
 
-	_, err := rabbitmq.ModuleID.GetModule(newFactory)
+	module, err := rabbitmq.ModuleID.GetModule(newFactory)
 	if err != nil {
 		panic("No module found")
 	}
 
 	log.Printf("Start listening for %v messages\n", messageType)
 
-	// var TypeListener message.ConformationMessageListener = component.MessageTypeListener{messageType: messageType, function: func(args ...interface{}) { fmt.Println("Found Message") }}
+	var TypeListener message.ConformationMessageListener = component.MessageTypeListener{MessageType: messageType, Function: func(args ...interface{}) { fmt.Println("Found Message") }}
 
-	// monitor, err := module.MqMessageRouter.SubscribeWithManualAck(&TypeListener, "group")
-	// if err != nil {
-	// 	log.Fatalln("Error occured when subscribing")
-	// }
-	// closingFunctions = append(closingFunctions, func() { monitor.Unsubscribe() })
+	monitor, err := module.MqMessageRouter.SubscribeWithManualAck(&TypeListener, "group")
+	if err != nil {
+		log.Fatalln("Error occured when subscribing")
+	}
+	closingFunctions = append(closingFunctions, func() { monitor.Unsubscribe() })
 
 	// Start listening for shutdown signal
 	<-wait

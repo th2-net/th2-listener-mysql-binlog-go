@@ -9,8 +9,8 @@ import (
 )
 
 type MessageTypeListener struct {
-	messageType string
-	function    func(args ...interface{})
+	MessageType string
+	Function    func(args ...interface{})
 }
 
 func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p_buff.MessageGroupBatch,
@@ -31,9 +31,9 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 		for _, AnyMessage := range group.Messages {
 			if AnyMessage.Kind != nil {
 				msg := AnyMessage.GetMessage()
-				if msg.Metadata.MessageType == listener.messageType {
-					log.Printf("Received message with %v message type\n", listener.messageType)
-					listener.function()
+				if msg.Metadata.MessageType == listener.MessageType {
+					log.Printf("Received message with %v message type\n", listener.MessageType)
+					listener.Function()
 					log.Printf("Triggered the function")
 				}
 			}
