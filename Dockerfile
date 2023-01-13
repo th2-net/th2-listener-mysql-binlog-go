@@ -1,12 +1,11 @@
 FROM golang:1.19 AS build
-RUN mkdir /app
-ADD . /app
 WORKDIR /app
+ADD . /app
 RUN apt update && apt install -y make
 RUN make
-RUN go build -o main main.go
+RUN go build -o main .
 
-FROM alpine:3.14
+FROM ubuntu:latest
 WORKDIR /app
-COPY --from=build /app/main .
-CMD ["/app/main"]
+COPY --from=build /app .
+ENTRYPOINT ["/app/main"]
