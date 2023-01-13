@@ -9,6 +9,8 @@ MODULE_DIR=$(MODULE_NAME)
 
 PROTOBUF_VERSION=v1.5.2
 
+PROTOC_VERSION=21.12
+
 default: prepare-main-module
 
 configure-go:
@@ -31,10 +33,14 @@ prepare-grpc-module: clean-grpc-module
 	- go work init
 	go work use ./$(MODULE_DIR)
 
-genrate-grpc-files: prepare-grpc-module configure-go
+prepare-proto-compiler:
+	apt install -y unzip
+	curl -Lo protoc.zip "https://github.com/protocolbuffers/protobuf/releases/latest/download/protoc-$(PROTOC_VERSION)-linux-x86_64.zip"
+	unzip -q protoc.zip -d /usr
+	chmod a+x /usr/bin/protoc
+
+genrate-grpc-files: prepare-proto-compiler prepare-grpc-module configure-go
 	$(eval $@_PROTO_DIR := $(shell go list -m -f '{{.Dir}}' $(TH2_GRPC_COMMON_URL))/$(SRC_MAIN_PROTO_DIR))
-	# apt install tree
-	# tree ../go
 	protoc \
 		--go_out=$(MODULE_DIR) \
 		--go_opt=paths=source_relative \
