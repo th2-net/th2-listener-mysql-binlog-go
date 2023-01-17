@@ -20,7 +20,7 @@ func main() {
 
 	newFactory := factory.NewFactory()
 	if err := newFactory.Register(rabbitmq.NewRabbitMQModule); err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 	closingFunctions = append(closingFunctions, func() { newFactory.Close() })
 
@@ -32,7 +32,7 @@ func main() {
 
 	module, err := rabbitmq.ModuleID.GetModule(newFactory)
 	if err != nil {
-		panic("No module found")
+		log.Fatalln(err)
 	}
 
 	log.Printf("Start listening for %v messages\n", messageType)
@@ -41,7 +41,7 @@ func main() {
 
 	monitor, err := module.MqMessageRouter.SubscribeWithManualAck(&TypeListener, "group")
 	if err != nil {
-		log.Fatalln("Error occured when subscribing")
+		log.Fatalln(err)
 	}
 	closingFunctions = append(closingFunctions, func() { monitor.Unsubscribe() })
 
