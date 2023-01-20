@@ -39,7 +39,7 @@ func main() {
 
 	var TypeListener message.ConformationMessageListener = component.MessageTypeListener{MessageType: messageType, Function: func(args ...interface{}) { fmt.Println("Found Message") }}
 
-	monitor, err := module.MqMessageRouter.SubscribeWithManualAck(&TypeListener, "group")
+	monitor, err := module.MqMessageRouter.SubscribeAllWithManualAck(&TypeListener, "group")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
 	}
