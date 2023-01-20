@@ -1,10 +1,10 @@
 package component
 
 import (
-	"log"
-
+	"fmt"
 	p_buff "th2-grpc/th2_grpc_common"
 
+	"github.com/rs/zerolog/log"
 	"github.com/th2-net/th2-common-go/schema/queue/MQcommon"
 )
 
@@ -18,12 +18,12 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Error occurred while processing the received message.")
+			log.Err(fmt.Errorf("%v", r)).Msg("Error occurred while processing the received message.")
 		}
 	}()
 
 	if err := (*confirm).Confirm(); err != nil {
-		log.Println("Error in message confirmation")
+		log.Err(err).Msg("Error occurred while processing the received message.")
 		return err
 	}
 
@@ -32,9 +32,9 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 			if AnyMessage.Kind != nil {
 				msg := AnyMessage.GetMessage()
 				if msg.Metadata.MessageType == listener.MessageType {
-					log.Printf("Received message with %v message type\n", listener.MessageType)
+					log.Info().Msgf("Received message with %v message type\n", listener.MessageType)
 					listener.Function()
-					log.Printf("Triggered the function")
+					log.Info().Msg("Triggered the function")
 				}
 			}
 		}
@@ -44,6 +44,6 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 }
 
 func (listener MessageTypeListener) OnClose() error {
-	log.Println("Listener OnClose")
+	log.Info().Msg("Listener OnClose")
 	return nil
 }

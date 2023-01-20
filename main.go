@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
 
+	"github.com/rs/zerolog/log"
 	component "github.com/th2-net/th2-box-template-go/component"
 	"github.com/th2-net/th2-common-go/schema/factory"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
@@ -20,7 +20,7 @@ func main() {
 
 	newFactory := factory.NewFactory()
 	if err := newFactory.Register(rabbitmq.NewRabbitMQModule); err != nil {
-		log.Fatalln(err)
+		log.Fatal().Err(err).Msg("Registering RabbitMQModule failed")
 	}
 	closingFunctions = append(closingFunctions, func() { newFactory.Close() })
 
@@ -32,16 +32,16 @@ func main() {
 
 	module, err := rabbitmq.ModuleID.GetModule(newFactory)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal().Err(err).Msg("Getting RabbitMQ module failed")
 	}
 
-	log.Printf("Start listening for %v messages\n", messageType)
+	log.Info().Msg(fmt.Sprintf("Start listening for %v messages\n", messageType))
 
 	var TypeListener message.ConformationMessageListener = component.MessageTypeListener{MessageType: messageType, Function: func(args ...interface{}) { fmt.Println("Found Message") }}
 
 	monitor, err := module.MqMessageRouter.SubscribeWithManualAck(&TypeListener, "group")
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
 	}
 	closingFunctions = append(closingFunctions, func() { monitor.Unsubscribe() })
 
@@ -55,7 +55,7 @@ func shutdown(closes *[]func()) <-chan bool {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, os.Interrupt)
 		<-ch
-		log.Println("Shutting Down")
+		log.Info().Msg("Shutting Down")
 		var wg sync.WaitGroup
 		for _, closeFunc := range *closes {
 			wg.Add(1)
