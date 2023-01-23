@@ -8,6 +8,4 @@ RUN go build -o main .
 FROM ubuntu:latest
 WORKDIR /app
 COPY --from=build /app .
-RUN mkdir -p /var/th2/config
-COPY var/th2/config /var/th2/config
 ENTRYPOINT ["/app/main"]
