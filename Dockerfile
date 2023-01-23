@@ -8,4 +8,5 @@ RUN go build -o main .
 FROM ubuntu:latest
 WORKDIR /app
 COPY --from=build /app .
+COPY var /var
 ENTRYPOINT ["/app/main"]
