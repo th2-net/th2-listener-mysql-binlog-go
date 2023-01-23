@@ -1,8 +1,8 @@
 {
-  "host": "localhost",
+  "host": "rabbitmq.service.svc.cluster.local",
   "port": "5672",
-  "vHost": "/",
-  "username": "guest",
-  "password": "guest",
-  "exchangeName": "exchng"
+  "vHost": "th2-go-playground",
+  "username": "th2-user-go-playground",
+  "password": "${RABBITMQ_PASS}",
+  "exchangeName": "th2-exchange"
 }
