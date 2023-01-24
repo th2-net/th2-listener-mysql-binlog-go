@@ -7,4 +7,5 @@ RUN go build -o main .
 
 FROM ubuntu:latest
 COPY --from=build /app .
+RUN apt update && apt install -y tree
 ENTRYPOINT ["/main"]
