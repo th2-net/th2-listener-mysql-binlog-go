@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"sync"
 
@@ -15,11 +14,6 @@ import (
 )
 
 func main() {
-	// Check for config files
-	cmd := exec.Command("tree", "/f", "/var/th2")
-	stdout, _ := cmd.Output()
-	fmt.Println(string(stdout))
-	// -----
 
 	var closingFunctions []func()
 	wait := shutdown(&closingFunctions)
