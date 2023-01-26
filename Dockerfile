@@ -6,5 +6,6 @@ RUN make
 RUN go build -o main .
 
 FROM ubuntu:latest
+WORKDIR /app
 COPY --from=build /app .
-ENTRYPOINT ["/main"]
+ENTRYPOINT ["/app/main"]
