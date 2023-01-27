@@ -40,12 +40,15 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 		return nil
 	}
 
-	log.Info().Msgf("%v\n", batch)
-
+	log.Info().Msg("Starting Loop over groups")
 	for _, group := range batch.Groups {
+		log.Info().Msg("Looping over messages")
 		for _, AnyMessage := range group.Messages {
+			log.Info().Msg("Checking if message is nil")
 			if AnyMessage.Kind != nil {
+				log.Info().Msg("Getting the message")
 				msg := AnyMessage.GetMessage()
+				log.Info().Msg("Checking if metadata is nil")
 				if msg.Metadata == nil {
 					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 						listener.RootEventID, CreateEvent(
