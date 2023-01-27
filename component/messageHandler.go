@@ -30,7 +30,7 @@ func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, B
 		RootEventID:    RootEventID,
 		Module:         module,
 		AmountReceived: &amountReceived,
-		NBatches:       BoxConf.NBatches,
+		NBatches:       4,
 		Stats:          make(map[string]int),
 	}
 }
