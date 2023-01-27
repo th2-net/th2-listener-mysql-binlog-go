@@ -34,7 +34,8 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 	for _, group := range batch.Groups {
 		for _, AnyMessage := range group.Messages {
 			if AnyMessage.Kind != nil {
-				if msg := AnyMessage.GetRawMessage(); msg == nil {
+				if msg := AnyMessage.GetRawMessage(); msg != nil {
+					log.Info().Msg("Received Raw Message")
 					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 						listener.RootEventID, CreateEvent(
 							CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Recevied Raw message", "message", nil, nil),
