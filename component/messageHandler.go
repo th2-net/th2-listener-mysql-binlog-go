@@ -1,6 +1,8 @@
 package component
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	p_buff "th2-grpc/th2_grpc_common"
@@ -11,10 +13,26 @@ import (
 )
 
 type MessageTypeListener struct {
-	MessageType string
-	Function    func(args ...interface{})
-	RootEventID *p_buff.EventID
-	Module      *rabbitmq.RabbitMQModule
+	MessageType    string
+	Function       func(args ...interface{})
+	RootEventID    *p_buff.EventID
+	Module         *rabbitmq.RabbitMQModule
+	AmountReceived *int
+	NBatches       int
+	Stats          map[string]int
+}
+
+func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, BoxConf *BoxConfiguration, Function func(args ...interface{})) *MessageTypeListener {
+	amountReceived := 0
+	return &MessageTypeListener{
+		MessageType:    BoxConf.MessageType,
+		Function:       Function,
+		RootEventID:    RootEventID,
+		Module:         module,
+		AmountReceived: &amountReceived,
+		NBatches:       BoxConf.NBatches,
+		Stats:          make(map[string]int),
+	}
 }
 
 func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p_buff.MessageGroupBatch,
@@ -23,6 +41,20 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 	defer func() {
 		if r := recover(); r != nil {
 			log.Err(fmt.Errorf("%v", r)).Msg("Error occurred while processing the received message.")
+		}
+		*listener.AmountReceived += 1
+		if *listener.AmountReceived%listener.NBatches == 0 {
+			log.Info().Msg("Sending Statistic Event")
+			var encoder bytes.Buffer
+			enc := gob.NewEncoder(&encoder)
+			table := GetNewTable("Message Type", "Amount")
+			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats["Raw"]))
+			table.AddRow("Message", fmt.Sprint(listener.Stats["Messsage"]))
+			enc.Encode(*table)
+			listener.Module.MqEventRouter.SendAll(CreateEventBatch(
+				listener.RootEventID, CreateEvent(
+					CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Statistic on Batches", "message", encoder.Bytes(), nil),
+			), "publish")
 		}
 	}()
 
@@ -36,13 +68,11 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 			if AnyMessage.Kind != nil {
 				if msg := AnyMessage.GetRawMessage(); msg != nil {
 					log.Info().Msg("Received Raw Message")
-					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
-						listener.RootEventID, CreateEvent(
-							CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Recevied Raw message", "message", nil, nil),
-					), "publish")
+					listener.Stats["Raw"] += 1
 					return nil
 				}
 				msg := AnyMessage.GetMessage()
+				listener.Stats["Message"] += 1
 				if msg.Metadata == nil {
 					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 						listener.RootEventID, CreateEvent(
@@ -53,11 +83,6 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 					log.Info().Msgf("Received message with %v message type\n", listener.MessageType)
 					listener.Function()
 					log.Info().Msg("Triggered the function")
-
-					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
-						listener.RootEventID, CreateEvent(
-							CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Message Received", "message", nil, nil),
-					), "publish")
 				}
 			}
 		}

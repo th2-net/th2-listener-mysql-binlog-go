@@ -1,3 +1,4 @@
 {
-    "messageType": "Batch"
+    "messageType": "Batch",
+    "NBatches": 4
 }

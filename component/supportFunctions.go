@@ -7,6 +7,27 @@ import (
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 
+type Table struct {
+	Type    string
+	rows    []interface{}
+	headers []string
+}
+
+func GetNewTable(headers ...string) *Table {
+	return &Table{
+		Type:    "table",
+		rows:    nil,
+		headers: headers,
+	}
+}
+func (table *Table) AddRow(args ...string) {
+	row := make(map[string]string)
+	for i, arg := range args {
+		row[table.headers[i]] = arg
+	}
+	table.rows = append(table.rows, row)
+}
+
 func CreateEventID() *p_buff.EventID {
 	return &p_buff.EventID{Id: uuid.New().String()}
 }

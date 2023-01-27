@@ -24,11 +24,8 @@ func main() {
 	}
 	closingFunctions = append(closingFunctions, func() { newFactory.Close() })
 
-	var customConfig map[string]string
-	newFactory.GetCustomConfiguration(&customConfig)
-
-	boxConf := component.BoxConfiguration{MessageType: customConfig["messageType"]}
-	messageType := boxConf.MessageType
+	var boxConf component.BoxConfiguration
+	newFactory.GetCustomConfiguration(&boxConf)
 
 	module, err := rabbitmq.ModuleID.GetModule(newFactory)
 	if err != nil {
@@ -44,14 +41,14 @@ func main() {
 	log.Info().Msg("Created root report event for box")
 
 	// Start listening for messages
-	log.Info().Msg(fmt.Sprintf("Start listening for %v messages\n", messageType))
+	log.Info().Msg(fmt.Sprintf("Start listening for %v messages\n", boxConf.MessageType))
 
-	var TypeListener message.ConformationMessageListener = component.MessageTypeListener{
-		MessageType: messageType,
-		Function:    func(args ...interface{}) { fmt.Println("Found Message") },
-		RootEventID: rootEventID,
-		Module:      module,
-	}
+	var TypeListener message.ConformationMessageListener = component.NewListener(
+		rootEventID,
+		module,
+		&boxConf,
+		func(args ...interface{}) { fmt.Println("Found Message") },
+	)
 
 	monitor, err := module.MqMessageRouter.SubscribeAllWithManualAck(&TypeListener, "group")
 	if err != nil {
