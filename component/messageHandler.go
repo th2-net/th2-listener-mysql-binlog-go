@@ -50,6 +50,7 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 				msg := AnyMessage.GetMessage()
 				log.Info().Msg("Checking if metadata is nil")
 				log.Info().Msgf("%v\n", listener.MessageType)
+				log.Info().Msgf("%v\n", msg)
 				log.Info().Msgf("%v\n", msg.Metadata)
 				log.Info().Msgf("%v == %v\n", msg.Metadata.MessageType, listener.MessageType)
 				if msg.Metadata == nil {
