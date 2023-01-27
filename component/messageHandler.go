@@ -40,6 +40,8 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 		return nil
 	}
 
+	log.Info().Msgf("%v\n", batch)
+
 	for _, group := range batch.Groups {
 		for _, AnyMessage := range group.Messages {
 			if AnyMessage.Kind != nil {
