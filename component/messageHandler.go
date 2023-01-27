@@ -31,28 +31,12 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 		return err
 	}
 
-	if batch.Groups == nil {
-		listener.Module.MqEventRouter.SendAll(CreateEventBatch(
-			listener.RootEventID, CreateEvent(
-				CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Error: metadata not set", "message", nil, nil),
-		), "publish")
-		log.Err(errors.New("nil Groups")).Msg("No Groups in MessageGroupBatch")
-		return nil
-	}
-
-	log.Info().Msg("Starting Loop over groups")
 	for _, group := range batch.Groups {
-		log.Info().Msg("Looping over messages")
+		log.Info().Msgf("group: %v\n", group)
 		for _, AnyMessage := range group.Messages {
-			log.Info().Msg("Checking if message is nil")
 			if AnyMessage.Kind != nil {
-				log.Info().Msg("Getting the message")
+				log.Info().Msgf("%v\n", AnyMessage.Kind)
 				msg := AnyMessage.GetMessage()
-				log.Info().Msg("Checking if metadata is nil")
-				log.Info().Msgf("%v\n", listener.MessageType)
-				log.Info().Msgf("%v\n", msg)
-				log.Info().Msgf("%v\n", msg.Metadata)
-				log.Info().Msgf("%v == %v\n", msg.Metadata.MessageType, listener.MessageType)
 				if msg.Metadata == nil {
 					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 						listener.RootEventID, CreateEvent(
