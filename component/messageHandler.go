@@ -32,10 +32,15 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 	}
 
 	for _, group := range batch.Groups {
-		log.Info().Msgf("group: %v\n", group)
 		for _, AnyMessage := range group.Messages {
 			if AnyMessage.Kind != nil {
-				log.Info().Msgf("%v\n", AnyMessage.Kind)
+				if msg := AnyMessage.GetRawMessage(); msg == nil {
+					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
+						listener.RootEventID, CreateEvent(
+							CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Recevied Raw message", "message", nil, nil),
+					), "publish")
+					return nil
+				}
 				msg := AnyMessage.GetMessage()
 				if msg.Metadata == nil {
 					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
