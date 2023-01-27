@@ -11,11 +11,11 @@ func CreateEventID() *p_buff.EventID {
 	return &p_buff.EventID{Id: uuid.New().String()}
 }
 
-func getTimestamp() *timestamp.Timestamp {
+func GetTimestamp() *timestamp.Timestamp {
 	return timestamp.Now()
 }
 
-func createEvent(Id *p_buff.EventID,
+func CreateEvent(Id *p_buff.EventID,
 	ParentId *p_buff.EventID,
 	StartTimestamp *timestamp.Timestamp,
 	EndTimestamp *timestamp.Timestamp,

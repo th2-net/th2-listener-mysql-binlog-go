@@ -35,9 +35,23 @@ func main() {
 		log.Fatal().Err(err).Msg("Getting RabbitMQ module failed")
 	}
 
+	// Create a root event
+	rootEventID := component.CreateEventID()
+	module.MqEventRouter.SendAll(component.CreateEventBatch(
+		nil, component.CreateEvent(
+			rootEventID, nil, component.GetTimestamp(), component.GetTimestamp(), 0, "Root Event", "message", nil, nil),
+	), "publish")
+	log.Info().Msg("Created root report event for box")
+
+	// Start listening for messages
 	log.Info().Msg(fmt.Sprintf("Start listening for %v messages\n", messageType))
 
-	var TypeListener message.ConformationMessageListener = component.MessageTypeListener{MessageType: messageType, Function: func(args ...interface{}) { fmt.Println("Found Message") }}
+	var TypeListener message.ConformationMessageListener = component.MessageTypeListener{
+		MessageType: messageType,
+		Function:    func(args ...interface{}) { fmt.Println("Found Message") },
+		RootEventID: rootEventID,
+		Module:      module,
+	}
 
 	monitor, err := module.MqMessageRouter.SubscribeAllWithManualAck(&TypeListener, "group")
 	if err != nil {
