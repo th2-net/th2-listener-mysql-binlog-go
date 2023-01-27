@@ -1,8 +1,7 @@
 package component
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	p_buff "th2-grpc/th2_grpc_common"
@@ -45,15 +44,13 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 		*listener.AmountReceived += 1
 		if *listener.AmountReceived%listener.NBatches == 0 {
 			log.Info().Msg("Sending Statistic Event")
-			var encoder bytes.Buffer
-			enc := gob.NewEncoder(&encoder)
 			table := GetNewTable("Message Type", "Amount")
 			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats["Raw"]))
 			table.AddRow("Message", fmt.Sprint(listener.Stats["Messsage"]))
-			enc.Encode(*table)
+			encoded, _ := json.Marshal(table)
 			listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 				listener.RootEventID, CreateEvent(
-					CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Statistic on Batches", "message", encoder.Bytes(), nil),
+					CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Statistic on Batches", "message", encoded, nil),
 			), "publish")
 		}
 	}()
