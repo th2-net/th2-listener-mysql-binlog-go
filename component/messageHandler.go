@@ -49,6 +49,7 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 				log.Info().Msg("Getting the message")
 				msg := AnyMessage.GetMessage()
 				log.Info().Msg("Checking if metadata is nil")
+				log.Info().Msgf("%v == %v\n", msg.Metadata.MessageType, listener.MessageType)
 				if msg.Metadata == nil {
 					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 						listener.RootEventID, CreateEvent(
