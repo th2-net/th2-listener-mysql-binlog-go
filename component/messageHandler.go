@@ -31,6 +31,15 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 		return err
 	}
 
+	if batch.Groups == nil {
+		listener.Module.MqEventRouter.SendAll(CreateEventBatch(
+			listener.RootEventID, CreateEvent(
+				CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Error: metadata not set", "message", nil, nil),
+		), "publish")
+		log.Err(errors.New("nil Groups")).Msg("No Groups in MessageGroupBatch")
+		return nil
+	}
+
 	for _, group := range batch.Groups {
 		for _, AnyMessage := range group.Messages {
 			if AnyMessage.Kind != nil {
