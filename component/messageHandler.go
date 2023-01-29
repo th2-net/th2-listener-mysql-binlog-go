@@ -47,7 +47,9 @@ func (listener MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p
 			table := GetNewTable("Message Type", "Amount")
 			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats["Raw"]))
 			table.AddRow("Message", fmt.Sprint(listener.Stats["Messsage"]))
-			encoded, _ := json.Marshal(table)
+			var payloads []Table
+			payloads = append(payloads, *table)
+			encoded, _ := json.Marshal(&payloads)
 			listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 				listener.RootEventID, CreateEvent(
 					CreateEventID(), listener.RootEventID, GetTimestamp(), GetTimestamp(), 0, "Statistic on Batches", "message", encoded, nil),

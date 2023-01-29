@@ -8,24 +8,24 @@ import (
 )
 
 type Table struct {
-	Type    string
-	rows    []interface{}
-	headers []string
+	Type    string        `json:"type"`
+	Rows    []interface{} `json:"rows"`
+	Headers []string      `json:"headers"`
 }
 
 func GetNewTable(headers ...string) *Table {
 	return &Table{
 		Type:    "table",
-		rows:    nil,
-		headers: headers,
+		Rows:    nil,
+		Headers: headers,
 	}
 }
 func (table *Table) AddRow(args ...string) {
 	row := make(map[string]string)
 	for i, arg := range args {
-		row[table.headers[i]] = arg
+		row[table.Headers[i]] = arg
 	}
-	table.rows = append(table.rows, row)
+	table.Rows = append(table.Rows, row)
 }
 
 func CreateEventID() *p_buff.EventID {
