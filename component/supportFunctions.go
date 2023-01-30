@@ -32,10 +32,6 @@ func CreateEventID() *p_buff.EventID {
 	return &p_buff.EventID{Id: uuid.New().String()}
 }
 
-func GetTimestamp() *timestamp.Timestamp {
-	return timestamp.Now()
-}
-
 func CreateEvent(Id *p_buff.EventID,
 	ParentId *p_buff.EventID,
 	StartTimestamp *timestamp.Timestamp,
