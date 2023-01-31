@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"syscall"
 	p_buff "th2-grpc/th2_grpc_common"
 
 	"github.com/rs/zerolog/log"
@@ -26,11 +24,10 @@ type MessageTypeListener struct {
 		MessageCount    int
 		RawMessageCount int
 	}
-	Wait <-chan bool
-	Ch   chan os.Signal
+	Err chan error
 }
 
-func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, BoxConf *BoxConfiguration, wait <-chan bool, ch chan os.Signal, Function func(args ...interface{})) *MessageTypeListener {
+func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, BoxConf *BoxConfiguration, err chan error, Function func(args ...interface{})) *MessageTypeListener {
 	return &MessageTypeListener{
 		MessageType:    BoxConf.MessageType,
 		Function:       Function,
@@ -38,8 +35,7 @@ func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, B
 		Module:         module,
 		AmountReceived: 0,
 		NBatches:       4,
-		Wait:           wait,
-		Ch:             ch,
+		Err:            err,
 		Stats: struct {
 			MessageCount    int
 			RawMessageCount int
@@ -51,9 +47,8 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Err(fmt.Errorf("%v", r)).Msg("Error occurred while processing the received message.")
-			listener.Ch <- syscall.SIGINT
-			<-listener.Wait
+			// Send error to main and close common factory
+			listener.Err <- fmt.Errorf("%v", r)
 		}
 		listener.AmountReceived += 1
 		if listener.AmountReceived%listener.NBatches == 0 {
