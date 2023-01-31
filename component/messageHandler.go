@@ -59,7 +59,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 			encoded, _ := json.Marshal(&payloads)
 			listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 				listener.RootEventID, CreateEvent(
-					CreateEventID(), listener.RootEventID, timestamp.Now(), timestamp.Now(), 0, "Statistic on Batches", "message", encoded, nil),
+					CreateEventID(), listener.RootEventID, timestamp.Now(), 0, "Statistic on Batches", "message", encoded, nil),
 			), "publish")
 		}
 	}()
@@ -77,7 +77,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 				if msg.Metadata == nil {
 					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
 						listener.RootEventID, CreateEvent(
-							CreateEventID(), listener.RootEventID, timestamp.Now(), timestamp.Now(), 0, "Error: metadata not set", "message", nil, nil),
+							CreateEventID(), listener.RootEventID, timestamp.Now(), 0, "Error: metadata not set", "message", nil, nil),
 					), "publish")
 					log.Err(errors.New("nil metadata")).Msg("Metadata not set for the message")
 				} else if msg.Metadata.MessageType == listener.MessageType {

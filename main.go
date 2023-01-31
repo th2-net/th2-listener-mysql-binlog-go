@@ -43,7 +43,7 @@ func main() {
 	rootEventID := component.CreateEventID()
 	module.MqEventRouter.SendAll(component.CreateEventBatch(
 		nil, component.CreateEvent(
-			rootEventID, nil, timestamp.Now(), timestamp.Now(), 0, "Root Event", "message", nil, nil),
+			rootEventID, nil, timestamp.Now(), 0, "Root Event", "message", nil, nil),
 	), "publish")
 	log.Info().Msg("Created root report event for box")
 
