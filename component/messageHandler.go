@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
 	"github.com/th2-net/th2-common-go/schema/queue/MQcommon"
+	utils "github.com/th2-net/th2-common-utils-go/th2_common_utils"
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -21,9 +22,12 @@ type MessageTypeListener struct {
 	Module         *rabbitmq.RabbitMQModule
 	AmountReceived int
 	NBatches       int
-	Stats          map[string]int
-	Wait           <-chan bool
-	Ch             chan os.Signal
+	Stats          struct {
+		MessageCount    int
+		RawMessageCount int
+	}
+	Wait <-chan bool
+	Ch   chan os.Signal
 }
 
 func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, BoxConf *BoxConfiguration, wait <-chan bool, ch chan os.Signal, Function func(args ...interface{})) *MessageTypeListener {
@@ -36,7 +40,10 @@ func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, B
 		NBatches:       4,
 		Wait:           wait,
 		Ch:             ch,
-		Stats:          make(map[string]int),
+		Stats: struct {
+			MessageCount    int
+			RawMessageCount int
+		}{0, 0},
 	}
 }
 
@@ -51,15 +58,24 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		listener.AmountReceived += 1
 		if listener.AmountReceived%listener.NBatches == 0 {
 			log.Debug().Msg("Sending Statistic Event")
-			table := GetNewTable("Message Type", "Amount")
-			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats["Raw"]))
-			table.AddRow("Message", fmt.Sprint(listener.Stats["Messsage"]))
-			var payloads []Table
+			table := utils.GetNewTable("Message Type", "Amount")
+			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats.RawMessageCount))
+			table.AddRow("Message", fmt.Sprint(listener.Stats.MessageCount))
+			var payloads []utils.Table
 			payloads = append(payloads, *table)
 			encoded, _ := json.Marshal(&payloads)
-			listener.Module.MqEventRouter.SendAll(CreateEventBatch(
-				listener.RootEventID, CreateEvent(
-					CreateEventID(), listener.RootEventID, timestamp.Now(), 0, "Statistic on Batches", "message", encoded, nil),
+			listener.Module.MqEventRouter.SendAll(utils.CreateEventBatch(listener.RootEventID,
+				&p_buff.Event{
+					Id:                 utils.CreateEventID(),
+					ParentId:           listener.RootEventID,
+					StartTimestamp:     timestamp.Now(),
+					EndTimestamp:       nil,
+					Status:             0,
+					Name:               "Statistics Event",
+					Type:               "Message",
+					Body:               encoded,
+					AttachedMessageIds: nil,
+				},
 			), "publish")
 		}
 	}()
@@ -69,15 +85,24 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 			switch AnyMessage.GetKind().(type) {
 			case *p_buff.AnyMessage_RawMessage:
 				log.Debug().Msg("Received Raw Message")
-				listener.Stats["Raw"] += 1
+				listener.Stats.RawMessageCount += 1
 			case *p_buff.AnyMessage_Message:
 				log.Debug().Msg("Received Message")
-				listener.Stats["Message"] += 1
+				listener.Stats.MessageCount += 1
 				msg := AnyMessage.GetMessage()
 				if msg.Metadata == nil {
-					listener.Module.MqEventRouter.SendAll(CreateEventBatch(
-						listener.RootEventID, CreateEvent(
-							CreateEventID(), listener.RootEventID, timestamp.Now(), 0, "Error: metadata not set", "message", nil, nil),
+					listener.Module.MqEventRouter.SendAll(utils.CreateEventBatch(listener.RootEventID,
+						&p_buff.Event{
+							Id:                 utils.CreateEventID(),
+							ParentId:           listener.RootEventID,
+							StartTimestamp:     timestamp.Now(),
+							EndTimestamp:       nil,
+							Status:             0,
+							Name:               "Error: metadata not set for message",
+							Type:               "Message",
+							Body:               nil,
+							AttachedMessageIds: nil,
+						},
 					), "publish")
 					log.Err(errors.New("nil metadata")).Msg("Metadata not set for the message")
 				} else if msg.Metadata.MessageType == listener.MessageType {

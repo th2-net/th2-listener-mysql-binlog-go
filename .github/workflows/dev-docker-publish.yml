@@ -28,7 +28,7 @@ jobs:
 
       - name: Get release_version
         id: ver
-        run: echo "release_version=$(go list -f '{{.Version}}' -m github.com/th2-net/th2-box-template-go@master)" >> $GITHUB_OUTPUT
+        run: echo "release_version=$(go list -f '{{.Version}}' -m github.com/th2-net/th2-box-template-go@box-template)" >> $GITHUB_OUTPUT
 
       - name: Build custom release version
         id: release_ver

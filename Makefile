@@ -56,6 +56,7 @@ clean-main-module: clean-grpc-module
 prepare-main-module: clean-main-module genrate-grpc-files
 	go mod init github.com/th2-net/th2-box-template-go
 	go get -u -t $(GITHUB_TH2)/th2-common-go@env-variable
+	go get -u -t github.com/th2-net/th2-common-utils-go@event-utils
 	go get -u -t github.com/google/uuid@v1.3.0
 	go get -u -t github.com/rs/zerolog@v1.28.0
 	go get -u -t github.com/streadway/amqp@v1.0.0

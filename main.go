@@ -7,11 +7,14 @@ import (
 	"sync"
 	"syscall"
 
+	p_buff "th2-grpc/th2_grpc_common"
+
 	"github.com/rs/zerolog/log"
 	component "github.com/th2-net/th2-box-template-go/component"
 	"github.com/th2-net/th2-common-go/schema/factory"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
 	"github.com/th2-net/th2-common-go/schema/queue/message"
+	utils "github.com/th2-net/th2-common-utils-go/th2_common_utils"
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -40,10 +43,19 @@ func main() {
 	}
 
 	// Create a root event
-	rootEventID := component.CreateEventID()
-	module.MqEventRouter.SendAll(component.CreateEventBatch(
-		nil, component.CreateEvent(
-			rootEventID, nil, timestamp.Now(), 0, "Root Event", "message", nil, nil),
+	rootEventID := utils.CreateEventID()
+	module.MqEventRouter.SendAll(utils.CreateEventBatch(nil,
+		&p_buff.Event{
+			Id:                 rootEventID,
+			ParentId:           nil,
+			StartTimestamp:     timestamp.Now(),
+			EndTimestamp:       nil,
+			Status:             0,
+			Name:               "Root Event",
+			Type:               "Message",
+			Body:               nil,
+			AttachedMessageIds: nil,
+		},
 	), "publish")
 	log.Info().Msg("Created root report event for box")
 
