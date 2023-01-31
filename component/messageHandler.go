@@ -50,7 +50,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		}
 		listener.AmountReceived += 1
 		if listener.AmountReceived%listener.NBatches == 0 {
-			log.Log().Msg("Sending Statistic Event")
+			log.Debug().Msg("Sending Statistic Event")
 			table := GetNewTable("Message Type", "Amount")
 			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats["Raw"]))
 			table.AddRow("Message", fmt.Sprint(listener.Stats["Messsage"]))
@@ -68,10 +68,10 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		for _, AnyMessage := range group.Messages {
 			switch AnyMessage.GetKind().(type) {
 			case *p_buff.AnyMessage_RawMessage:
-				log.Log().Msg("Received Raw Message")
+				log.Debug().Msg("Received Raw Message")
 				listener.Stats["Raw"] += 1
 			case *p_buff.AnyMessage_Message:
-				log.Log().Msg("Received Message")
+				log.Debug().Msg("Received Message")
 				listener.Stats["Message"] += 1
 				msg := AnyMessage.GetMessage()
 				if msg.Metadata == nil {
@@ -81,9 +81,9 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 					), "publish")
 					log.Err(errors.New("nil metadata")).Msg("Metadata not set for the message")
 				} else if msg.Metadata.MessageType == listener.MessageType {
-					log.Log().Msgf("Received message with %v message type\n", listener.MessageType)
+					log.Debug().Msgf("Received message with %v message type\n", listener.MessageType)
 					listener.Function()
-					log.Log().Msg("Triggered the function")
+					log.Debug().Msg("Triggered the function")
 				}
 			}
 		}

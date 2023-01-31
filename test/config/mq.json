@@ -3,7 +3,7 @@
     "test_queue": {
       "name": "task_queue",
       "queue": "task_queue",
-      "exchange": "th2-exchange",
+      "exchange": "exchng",
       "attributes": ["group", "subscribe", "publish"]
     }
   }
