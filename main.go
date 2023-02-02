@@ -22,12 +22,12 @@ func main() {
 
 	var closingFunctions []func()
 	ch := make(chan os.Signal, 1)
-	er, wait := shutdown(&closingFunctions, ch)
+	wait := shutdown(&closingFunctions, ch)
 
 	newFactory := factory.NewFactory()
 	closingFunctions = append(closingFunctions, func() { newFactory.Close() })
 	if err := newFactory.Register(rabbitmq.NewRabbitMQModule); err != nil {
-		ch <- syscall.SIGTERM
+		ch <- syscall.SIGINT
 		<-wait
 		log.Fatal().Err(err).Msg("Registering RabbitMQModule failed")
 	}
@@ -37,7 +37,7 @@ func main() {
 
 	module, err := rabbitmq.ModuleID.GetModule(newFactory)
 	if err != nil {
-		ch <- syscall.SIGTERM
+		ch <- syscall.SIGINT
 		<-wait
 		log.Fatal().Err(err).Msg("Getting RabbitMQ module failed")
 	}
@@ -66,33 +66,27 @@ func main() {
 		rootEventID,
 		module,
 		&boxConf,
-		er,
 		func(args ...interface{}) { fmt.Println("Found Message") },
 	)
 
 	monitor, err := module.MqMessageRouter.SubscribeAll(&TypeListener, "group")
 	closingFunctions = append(closingFunctions, func() { monitor.Unsubscribe() })
 	if err != nil {
-		ch <- syscall.SIGTERM
+		ch <- syscall.SIGINT
 		<-wait
 		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
 	}
 
-	// Start listening for shutdown signal and errors
-	if err := <-er; err != nil {
-		ch <- syscall.SIGTERM
-		<-wait
-		log.Error().Err(err).Msg("Error occured during work, Exiting application")
-	}
+	// Start listening for shutdown signal
+	<-wait
 
 }
 
-func shutdown(closes *[]func(), ch chan os.Signal) (chan error, <-chan bool) {
-	err := make(chan error)
+func shutdown(closes *[]func(), ch chan os.Signal) <-chan bool {
 	wait := make(chan bool)
 	go func() {
-		signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-		sig := <-ch
+		signal.Notify(ch, os.Interrupt)
+		<-ch
 		log.Info().Msg("Shutting Down")
 		var wg sync.WaitGroup
 		for _, closeFunc := range *closes {
@@ -104,11 +98,7 @@ func shutdown(closes *[]func(), ch chan os.Signal) (chan error, <-chan bool) {
 			}()
 		}
 		wg.Wait()
-		// if closed by interuption signal, then error is nil
-		if sig == syscall.SIGINT {
-			err <- nil
-		}
 		close(wait)
 	}()
-	return err, wait
+	return wait
 }

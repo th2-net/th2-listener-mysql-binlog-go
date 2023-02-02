@@ -24,10 +24,9 @@ type MessageTypeListener struct {
 		MessageCount    int
 		RawMessageCount int
 	}
-	Err chan error
 }
 
-func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, BoxConf *BoxConfiguration, err chan error, Function func(args ...interface{})) *MessageTypeListener {
+func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, BoxConf *BoxConfiguration, Function func(args ...interface{})) *MessageTypeListener {
 	return &MessageTypeListener{
 		MessageType:    BoxConf.MessageType,
 		Function:       Function,
@@ -35,7 +34,6 @@ func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, B
 		Module:         module,
 		AmountReceived: 0,
 		NBatches:       4,
-		Err:            err,
 		Stats: struct {
 			MessageCount    int
 			RawMessageCount int
@@ -46,10 +44,6 @@ func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, B
 func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p_buff.MessageGroupBatch) error {
 
 	defer func() {
-		if r := recover(); r != nil {
-			// Send error to main and close common factory
-			listener.Err <- fmt.Errorf("%v", r)
-		}
 		listener.AmountReceived += 1
 		if listener.AmountReceived%listener.NBatches == 0 {
 			log.Debug().Msg("Sending Statistic Event")
