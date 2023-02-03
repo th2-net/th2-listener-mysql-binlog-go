@@ -34,7 +34,6 @@ prepare-grpc-module: clean-grpc-module
 	go work use ./$(MODULE_DIR)
 
 prepare-proto-compiler:
-	apt install -y unzip
 	curl -Lo protoc.zip "https://github.com/protocolbuffers/protobuf/releases/latest/download/protoc-$(PROTOC_VERSION)-linux-x86_64.zip"
 	unzip -q protoc.zip -d /usr
 	chmod a+x /usr/bin/protoc
