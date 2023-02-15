@@ -61,6 +61,9 @@ prepare-main-module: clean-main-module genrate-grpc-files
 	go get -u -t github.com/rs/zerolog@v1.28.0
 	go get -u -t github.com/streadway/amqp@v1.0.0
 	go get -u -t golang.org/x/sys@latest
-	go get -u -t github.com/golang/protobuf@$(PROTOBUF_VERSION) 
+	go get -u -t github.com/golang/protobuf@$(PROTOBUF_VERSION)
+	go get -u -t github.com/prometheus/client_golang/prometheus
+	go get -u -t github.com/prometheus/client_golang/prometheus/promauto
+	go get -u -t github.com/prometheus/client_golang/prometheus/promhttp
 
 	go work init ; go work use .
