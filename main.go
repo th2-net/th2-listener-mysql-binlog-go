@@ -28,6 +28,7 @@ import (
 	"github.com/rs/zerolog/log"
 	component "github.com/th2-net/th2-box-template-go/component"
 	"github.com/th2-net/th2-common-go/schema/factory"
+	promModule "github.com/th2-net/th2-common-go/schema/modules/PrometheusModule"
 	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
 	"github.com/th2-net/th2-common-go/schema/queue/message"
 	utils "github.com/th2-net/th2-common-utils-go/th2_common_utils"
@@ -92,6 +93,18 @@ func main() {
 		<-wait
 		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
 	}
+
+	promMod, err := promModule.ModuleID.GetModule(newFactory)
+	if err != nil {
+		ch <- syscall.SIGINT
+		<-wait
+		log.Fatal().Err(err).Msg("Getting Prometheus module failed")
+	}
+	livenessMonitor := promMod.LivenessArbiter.RegisterMonitor("liveness_monitor")
+	readinessMonitor := promMod.ReadinessArbiter.RegisterMonitor("readiness_monitor")
+	livenessMonitor.Enable()
+	readinessMonitor.Enable()
+	closingFunctions = append(closingFunctions, func() { promMod.Close() })
 
 	// Start listening for shutdown signal
 	<-wait
