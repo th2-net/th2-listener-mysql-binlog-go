@@ -34,13 +34,12 @@ prepare-grpc-module: clean-grpc-module
 	go work use ./$(MODULE_DIR)
 
 prepare-proto-compiler:
-	curl -Lo protoc.zip "https://github.com/protocolbuffers/protobuf/releases/latest/download/protoc-$(PROTOC_VERSION)-linux-x86_64.zip"
-	unzip -q protoc.zip -d /usr
-	chmod a+x /usr/bin/protoc
+	curl -Lo protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip"
+	unzip -q protoc.zip -d protoc
 
 genrate-grpc-files: prepare-proto-compiler prepare-grpc-module configure-go
 	$(eval $@_PROTO_DIR := $(shell go list -m -f '{{.Dir}}' $(TH2_GRPC_COMMON_URL))/$(SRC_MAIN_PROTO_DIR))
-	protoc \
+	protoc/bin/protoc \
 		--go_out=$(MODULE_DIR) \
 		--go_opt=paths=source_relative \
 		--go-grpc_out=$(MODULE_DIR) \
