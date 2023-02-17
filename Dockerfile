@@ -3,7 +3,7 @@ WORKDIR /app
 ADD . /app
 RUN apt update \
     && apt install -y make \
-    && apt install -y unzip
+    && apt install -y protobuf-compiler
 RUN make
 RUN go build -o main .
 
