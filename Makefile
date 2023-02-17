@@ -35,7 +35,7 @@ prepare-grpc-module: clean-grpc-module
 
 genrate-grpc-files: prepare-grpc-module configure-go
 	$(eval $@_PROTO_DIR := $(shell go list -m -f '{{.Dir}}' $(TH2_GRPC_COMMON_URL))/$(SRC_MAIN_PROTO_DIR))
-	protoc/bin/protoc \
+	protoc \
 		--go_out=$(MODULE_DIR) \
 		--go_opt=paths=source_relative \
 		--go-grpc_out=$(MODULE_DIR) \
