@@ -73,7 +73,7 @@ func main() {
 			Body:               nil,
 			AttachedMessageIds: nil,
 		},
-	), "publish")
+	), "event")
 	log.Info().Msg("Created root report event for box")
 
 	// Start listening for messages

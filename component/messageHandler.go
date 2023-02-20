@@ -108,7 +108,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 							Body:               nil,
 							AttachedMessageIds: nil,
 						},
-					))
+					), "event")
 					log.Err(errors.New("nil metadata")).Msg("Metadata not set for the message")
 				} else if msg.Metadata.MessageType == listener.MessageType {
 					log.Debug().Msgf("Received message with %v message type\n", listener.MessageType)
