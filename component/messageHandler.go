@@ -81,7 +81,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 					Body:               encoded,
 					AttachedMessageIds: nil,
 				},
-			))
+			), "event")
 		}
 	}()
 
