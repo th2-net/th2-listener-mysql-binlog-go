@@ -119,6 +119,8 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		}
 	}
 
+	listener.Module.MqMessageRouter.SendAll(batch)
+
 	return nil
 }
 
