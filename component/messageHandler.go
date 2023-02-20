@@ -119,7 +119,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		}
 	}
 
-	listener.Module.MqMessageRouter.SendAll(batch)
+	listener.Module.MqMessageRouter.SendAll(batch, "group")
 
 	return nil
 }
