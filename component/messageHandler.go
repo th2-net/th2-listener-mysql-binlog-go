@@ -112,6 +112,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 					log.Err(errors.New("nil metadata")).Msg("Metadata not set for the message")
 				} else if msg.Metadata.MessageType == listener.MessageType {
 					log.Debug().Msgf("Received message with %v message type\n", listener.MessageType)
+					log.Debug().Msgf("Consumed message session_alias and data ", msg.Metadata.Id.ConnectionId.SessionAlias, msg.Fields)
 					listener.Function()
 					log.Debug().Msg("Triggered the function")
 				}

@@ -86,9 +86,24 @@ func main() {
 		func(args ...interface{}) { fmt.Println("Found Message") },
 	)
 
-	monitor, err := module.MqMessageRouter.SubscribeAll(&TypeListener, "group")
-	closingFunctions = append(closingFunctions, func() { monitor.Unsubscribe() })
-	if err != nil {
+	monitor1, err1 := module.MqMessageRouter.SubscribeAll(&TypeListener, "group", "one")
+	closingFunctions = append(closingFunctions, func() { monitor1.Unsubscribe() })
+	if err1 != nil {
+		ch <- syscall.SIGINT
+		<-wait
+		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
+	}
+	monitor2, err2 := module.MqMessageRouter.SubscribeAll(&TypeListener, "group", "two")
+	closingFunctions = append(closingFunctions, func() { monitor2.Unsubscribe() })
+	if err2 != nil {
+		ch <- syscall.SIGINT
+		<-wait
+		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
+	}
+
+	monitor3, err3 := module.MqMessageRouter.SubscribeAll(&TypeListener, "group", "three")
+	closingFunctions = append(closingFunctions, func() { monitor3.Unsubscribe() })
+	if err3 != nil {
 		ch <- syscall.SIGINT
 		<-wait
 		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
