@@ -83,7 +83,7 @@ func main() {
 		rootEventID,
 		module,
 		&boxConf,
-		func(args ...interface{}) { fmt.Println("Found Message") },
+		func(args ...interface{}) { fmt.Println("Found Message with ID: ", args) },
 	)
 
 	monitor1, err1 := module.MqMessageRouter.SubscribeAll(&TypeListener, "group", "one")
