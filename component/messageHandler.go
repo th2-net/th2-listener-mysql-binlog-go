@@ -89,10 +89,10 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		for _, AnyMessage := range group.Messages {
 			switch AnyMessage.GetKind().(type) {
 			case *p_buff.AnyMessage_RawMessage:
-				log.Debug().Str("Method", "\"Handle\"").Fields(AnyMessage.GetRawMessage().Metadata.Id).Msg("Received Raw Message")
+				log.Debug().Str("Method", "\"Handle\"").Interface("MessageID", AnyMessage.GetRawMessage().Metadata.Id).Msg("Received Raw Message")
 				listener.Stats.RawMessageCount += 1
 			case *p_buff.AnyMessage_Message:
-				log.Debug().Str("Method", "\"Handle\"").Fields(AnyMessage.GetMessage().Metadata.Id).Msg("Received Message")
+				log.Debug().Str("Method", "\"Handle\"").Interface("MessageID", AnyMessage.GetMessage().Metadata.Id).Msg("Received Message")
 				listener.Stats.MessageCount += 1
 				msg := AnyMessage.GetMessage()
 				if msg.Metadata == nil {
