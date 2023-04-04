@@ -74,10 +74,10 @@ func main() {
 			AttachedMessageIds: nil,
 		},
 	), "event")
-	log.Info().Msg("Created root report event for box")
+	log.Info().Str("component", "box_template_main").Msg("Created root report event for box")
 
 	// Start listening for messages
-	log.Info().Msg(fmt.Sprintf("Start listening for %v messages\n", boxConf.MessageType))
+	log.Info().Str("component", "box_template_main").Msg(fmt.Sprintf("Start listening for %v messages\n", boxConf.MessageType))
 
 	var TypeListener message.MessageListener = component.NewListener(
 		rootEventID,
@@ -131,7 +131,7 @@ func shutdown(closes *[]func(), ch chan os.Signal) <-chan bool {
 	go func() {
 		signal.Notify(ch, os.Interrupt)
 		<-ch
-		log.Info().Msg("Shutting Down")
+		log.Info().Str("component", "box_template_main").Msg("Shutting Down")
 		var wg sync.WaitGroup
 		for _, closeFunc := range *closes {
 			wg.Add(1)
