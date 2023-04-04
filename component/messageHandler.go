@@ -62,7 +62,7 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 	defer func() {
 		listener.AmountReceived += 1
 		if listener.AmountReceived%listener.NBatches == 0 {
-			log.Debug().Str("Method", "\"Handle\"").Msg("Sending Statistic Event")
+			log.Debug().Str("Method", "Handle").Msg("Sending Statistic Event")
 			table := utils.GetNewTable("Message Type", "Amount")
 			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats.RawMessageCount))
 			table.AddRow("Message", fmt.Sprint(listener.Stats.MessageCount))
@@ -89,10 +89,10 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		for _, AnyMessage := range group.Messages {
 			switch AnyMessage.GetKind().(type) {
 			case *p_buff.AnyMessage_RawMessage:
-				log.Debug().Str("Method", "\"Handle\"").Interface("MessageID", AnyMessage.GetRawMessage().Metadata.Id).Msg("Received Raw Message")
+				log.Debug().Str("Method", "Handle").Interface("MessageID", AnyMessage.GetRawMessage().Metadata.Id).Msg("Received Raw Message")
 				listener.Stats.RawMessageCount += 1
 			case *p_buff.AnyMessage_Message:
-				log.Debug().Str("Method", "\"Handle\"").Interface("MessageID", AnyMessage.GetMessage().Metadata.Id).Msg("Received Message")
+				log.Debug().Str("Method", "Handle").Interface("MessageID", AnyMessage.GetMessage().Metadata.Id).Msg("Received Message")
 				listener.Stats.MessageCount += 1
 				msg := AnyMessage.GetMessage()
 				if msg.Metadata == nil {
@@ -111,10 +111,10 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 					), "event")
 					log.Err(errors.New("nil metadata")).Msg("Metadata not set for the message")
 				} else if msg.Metadata.MessageType == listener.MessageType {
-					log.Debug().Str("Method", "\"Handle\"").Msgf("Received message with %v message type\n", listener.MessageType)
-					log.Debug().Str("Method", "\"Handle\"").Msgf("Consumed message session_alias and data ", msg.Metadata.Id.ConnectionId.SessionAlias, msg.Fields)
+					log.Debug().Str("Method", "Handle").Msgf("Received message with %v message type\n", listener.MessageType)
+					log.Debug().Str("Method", "Handle").Msgf("Consumed message session_alias and data ", msg.Metadata.Id.ConnectionId.SessionAlias, msg.Fields)
 					listener.Function()
-					log.Debug().Str("Method", "\"Handle\"").Msg("Triggered the function")
+					log.Debug().Str("Method", "Handle").Msg("Triggered the function")
 				}
 			}
 		}
