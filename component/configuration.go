@@ -16,7 +16,7 @@
 
 package component
 
-type BoxConfiguration struct {
+type Configuration struct {
 	MessageType string
 	NBatches    int
 }

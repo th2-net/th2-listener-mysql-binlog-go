@@ -11,7 +11,7 @@ PROTOBUF_VERSION=v1.5.2
 
 PROTOC_VERSION=21.12
 
-default: prepare-main-module
+default: prepare-main-module build
 
 configure-go:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -26,14 +26,13 @@ prepare-grpc-module: clean-grpc-module
 
 	cd $(MODULE_DIR) \
 		&& go get -u -t $(TH2_GRPC_COMMON_URL) \
-		&& go get -u -t github.com/golang/protobuf@$(PROTOBUF_VERSION) \
 		&& go get -u -t google.golang.org/protobuf@v1.26.0 \
 		&& go get -u -t github.com/google/go-cmp@v0.5.9
 
 	- go work init
 	go work use ./$(MODULE_DIR)
 
-genrate-grpc-files: prepare-grpc-module configure-go
+generate-grpc-files: prepare-grpc-module configure-go
 	$(eval $@_PROTO_DIR := $(shell go list -m -f '{{.Dir}}' $(TH2_GRPC_COMMON_URL))/$(SRC_MAIN_PROTO_DIR))
 	protoc \
 		--go_out=$(MODULE_DIR) \
@@ -42,23 +41,15 @@ genrate-grpc-files: prepare-grpc-module configure-go
 		--go-grpc_opt=paths=source_relative \
 		--proto_path=$($@_PROTO_DIR) \
 		$(shell find $($@_PROTO_DIR) -name '*.proto' )
+	cd $(MODULE_NAME) && go mod tidy
 
-clean-main-module: clean-grpc-module
-	-rm go.work go.work.sum
-	-rm go.mod go.sum
+prepare-main-module: generate-grpc-files
+	- go work init
+	go work use .
 
-prepare-main-module: clean-main-module genrate-grpc-files
-	go mod init github.com/th2-net/th2-box-template-go
-	go get -u -t $(GITHUB_TH2)/th2-common-go@9f3b574
-	go get -u -t github.com/th2-net/th2-common-utils-go
-	go get -u -t github.com/magiconair/properties
-	go get -u -t github.com/google/uuid@v1.3.0
-	go get -u -t github.com/rs/zerolog@v1.28.0
-	go get -u -t github.com/streadway/amqp@v1.0.0
-	go get -u -t golang.org/x/sys@latest
-	go get -u -t github.com/golang/protobuf@$(PROTOBUF_VERSION)
-	go get -u -t github.com/prometheus/client_golang/prometheus
-	go get -u -t github.com/prometheus/client_golang/prometheus/promauto
-	go get -u -t github.com/prometheus/client_golang/prometheus/promhttp
+build:
+	go vet ./...
+	go build -v -race ./...
 
-	go work init ; go work use .
+run-test:
+	go test -v ./...

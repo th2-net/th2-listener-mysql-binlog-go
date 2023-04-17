@@ -18,50 +18,52 @@ package main
 
 import (
 	"fmt"
+	"github.com/th2-net/th2-common-go/pkg/common"
+	queueApi "github.com/th2-net/th2-common-go/pkg/queue"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	p_buff "th2-grpc/th2_grpc_common"
 
 	"github.com/rs/zerolog/log"
-	component "github.com/th2-net/th2-box-template-go/component"
-	"github.com/th2-net/th2-common-go/schema/factory"
-	promModule "github.com/th2-net/th2-common-go/schema/modules/PrometheusModule"
-	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
-	"github.com/th2-net/th2-common-go/schema/queue/message"
-	utils "github.com/th2-net/th2-common-utils-go/th2_common_utils"
+	"github.com/th2-net/th2-box-template-go/component"
+	"github.com/th2-net/th2-common-go/pkg/factory"
+	"github.com/th2-net/th2-common-go/pkg/modules/prometheus"
+	"github.com/th2-net/th2-common-go/pkg/modules/queue"
+	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func main() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
-	var closingFunctions []func()
-	ch := make(chan os.Signal, 1)
-	wait := shutdown(&closingFunctions, ch)
-
-	newFactory := factory.NewFactory()
-	closingFunctions = append(closingFunctions, func() { newFactory.Close() })
-	if err := newFactory.Register(rabbitmq.NewRabbitMQModule); err != nil {
-		ch <- syscall.SIGINT
-		<-wait
-		log.Fatal().Err(err).Msg("Registering RabbitMQModule failed")
+	newFactory := factory.New()
+	defer func(newFactory common.Factory) {
+		err := newFactory.Close()
+		if err != nil {
+			log.Error().Err(err).
+				Msg("cannot close factory")
+		}
+	}(newFactory)
+	if err := newFactory.Register(queue.NewRabbitMqModule); err != nil {
+		panic(err)
 	}
 
-	var boxConf component.BoxConfiguration
-	newFactory.GetCustomConfiguration(&boxConf)
+	var boxConf component.Configuration
+	if err := newFactory.GetCustomConfiguration(&boxConf); err != nil {
+		panic(err)
+	}
 
-	module, err := rabbitmq.ModuleID.GetModule(newFactory)
+	module, err := queue.ModuleID.GetModule(newFactory)
 	if err != nil {
-		ch <- syscall.SIGINT
-		<-wait
-		log.Fatal().Err(err).Msg("Getting RabbitMQ module failed")
+		panic(err)
 	}
 
 	// Create a root event
 	rootEventID := utils.CreateEventID()
-	module.MqEventRouter.SendAll(utils.CreateEventBatch(nil,
+	err = module.GetEventRouter().SendAll(utils.CreateEventBatch(nil,
 		&p_buff.Event{
 			Id:                 rootEventID,
 			ParentId:           nil,
@@ -73,76 +75,76 @@ func main() {
 			Body:               nil,
 			AttachedMessageIds: nil,
 		},
-	), "event")
-	log.Info().Str("component", "box_template_main").Msg("Created root report event for box")
+	))
+	if err != nil {
+		panic(err)
+	}
+	log.Info().
+		Str("component", "box_template_main").
+		Msg("Created root report event for box")
 
 	// Start listening for messages
-	log.Info().Str("component", "box_template_main").Msg(fmt.Sprintf("Start listening for %v messages\n", boxConf.MessageType))
+	log.Info().
+		Str("component", "box_template_main").
+		Msg(fmt.Sprintf("Start listening for %v messages\n", boxConf.MessageType))
 
-	var TypeListener message.MessageListener = component.NewListener(
+	typeListener := component.NewListener(
 		rootEventID,
-		module,
+		module.GetMessageRouter(),
+		module.GetEventRouter(),
 		&boxConf,
 		func(args ...interface{}) {},
 	)
 
-	monitor1, err1 := module.MqMessageRouter.SubscribeAll(&TypeListener, "group", "one")
-	closingFunctions = append(closingFunctions, func() { monitor1.Unsubscribe() })
-	if err1 != nil {
-		ch <- syscall.SIGINT
-		<-wait
-		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
-	}
-	monitor2, err2 := module.MqMessageRouter.SubscribeAll(&TypeListener, "group", "two")
-	closingFunctions = append(closingFunctions, func() { monitor2.Unsubscribe() })
-	if err2 != nil {
-		ch <- syscall.SIGINT
-		<-wait
-		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
-	}
-
-	monitor3, err3 := module.MqMessageRouter.SubscribeAll(&TypeListener, "group", "three")
-	closingFunctions = append(closingFunctions, func() { monitor3.Unsubscribe() })
-	if err3 != nil {
-		ch <- syscall.SIGINT
-		<-wait
-		log.Fatal().Err(err).Msg("Subscribing listener to the module failed")
-	}
-
-	promMod, err := promModule.ModuleID.GetModule(newFactory)
+	monitor1, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "one")
 	if err != nil {
-		ch <- syscall.SIGINT
-		<-wait
-		log.Fatal().Err(err).Msg("Getting Prometheus module failed")
+		panic(err)
 	}
-	livenessMonitor := promMod.LivenessArbiter.RegisterMonitor("liveness_monitor")
-	readinessMonitor := promMod.ReadinessArbiter.RegisterMonitor("readiness_monitor")
+	defer func(monitor1 queueApi.Monitor) {
+		err := monitor1.Unsubscribe()
+		if err != nil {
+			log.Error().Err(err).
+				Msg("cannot unsubscribe from message 'one' pin")
+		}
+	}(monitor1)
+	monitor2, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "two")
+	if err != nil {
+		panic(err)
+	}
+	defer func(monitor2 queueApi.Monitor) {
+		err := monitor2.Unsubscribe()
+		if err != nil {
+			log.Error().Err(err).
+				Msg("cannot unsubscribe from message 'two' pin")
+		}
+	}(monitor2)
+
+	monitor3, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "three")
+	if err != nil {
+		panic(err)
+	}
+	defer func(monitor3 queueApi.Monitor) {
+		err := monitor3.Unsubscribe()
+		if err != nil {
+			log.Error().Err(err).
+				Msg("cannot unsubscribe from message 'three' pin")
+		}
+	}(monitor3)
+
+	promMod, err := prometheus.ModuleID.GetModule(newFactory)
+	if err != nil {
+		panic(err)
+	}
+	livenessMonitor := promMod.GetLivenessArbiter().RegisterMonitor("liveness_monitor")
+	readinessMonitor := promMod.GetReadinessArbiter().RegisterMonitor("readiness_monitor")
 	livenessMonitor.Enable()
 	readinessMonitor.Enable()
-	closingFunctions = append(closingFunctions, func() { promMod.Close() })
 
 	// Start listening for shutdown signal
-	<-wait
+	select {
+	case s := <-sigCh:
+		log.Info().Interface("signal", s).Msg("shutdown component because of user signal")
+		return
+	}
 
-}
-
-func shutdown(closes *[]func(), ch chan os.Signal) <-chan bool {
-	wait := make(chan bool)
-	go func() {
-		signal.Notify(ch, os.Interrupt)
-		<-ch
-		log.Info().Str("component", "box_template_main").Msg("Shutting Down")
-		var wg sync.WaitGroup
-		for _, closeFunc := range *closes {
-			wg.Add(1)
-			clsFunc := closeFunc
-			go func() {
-				defer wg.Done()
-				clsFunc()
-			}()
-		}
-		wg.Wait()
-		close(wait)
-	}()
-	return wait
 }

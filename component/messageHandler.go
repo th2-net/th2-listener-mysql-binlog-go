@@ -18,14 +18,15 @@ package component
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/th2-net/th2-common-go/pkg/queue"
+	"github.com/th2-net/th2-common-go/pkg/queue/event"
+	"github.com/th2-net/th2-common-go/pkg/queue/message"
+	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
 	p_buff "th2-grpc/th2_grpc_common"
 
 	"github.com/rs/zerolog/log"
-	rabbitmq "github.com/th2-net/th2-common-go/schema/modules/mqModule"
-	"github.com/th2-net/th2-common-go/schema/queue/MQcommon"
-	utils "github.com/th2-net/th2-common-utils-go/th2_common_utils"
+	"github.com/th2-net/th2-common-utils-go/pkg/event/report"
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -33,7 +34,8 @@ type MessageTypeListener struct {
 	MessageType    string
 	Function       func(args ...interface{})
 	RootEventID    *p_buff.EventID
-	Module         *rabbitmq.RabbitMQModule
+	messageRouter  message.Router
+	eventRouter    event.Router
 	AmountReceived int
 	NBatches       int
 	Stats          struct {
@@ -42,12 +44,19 @@ type MessageTypeListener struct {
 	}
 }
 
-func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, BoxConf *BoxConfiguration, Function func(args ...interface{})) *MessageTypeListener {
+func NewListener(
+	rootEventID *p_buff.EventID,
+	messageRouter message.Router,
+	eventRouter event.Router,
+	conf *Configuration,
+	function func(args ...interface{}),
+) *MessageTypeListener {
 	return &MessageTypeListener{
-		MessageType:    BoxConf.MessageType,
-		Function:       Function,
-		RootEventID:    RootEventID,
-		Module:         module,
+		MessageType:    conf.MessageType,
+		Function:       function,
+		RootEventID:    rootEventID,
+		eventRouter:    eventRouter,
+		messageRouter:  messageRouter,
 		AmountReceived: 0,
 		NBatches:       4,
 		Stats: struct {
@@ -57,19 +66,21 @@ func NewListener(RootEventID *p_buff.EventID, module *rabbitmq.RabbitMQModule, B
 	}
 }
 
-func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *p_buff.MessageGroupBatch) error {
+func (listener *MessageTypeListener) Handle(_ queue.Delivery, batch *p_buff.MessageGroupBatch) error {
 
 	defer func() {
 		listener.AmountReceived += 1
 		if listener.AmountReceived%listener.NBatches == 0 {
 			log.Debug().Str("Method", "Handle").Msg("Sending Statistic Event")
-			table := utils.GetNewTable("Message Type", "Amount")
+			table := report.GetNewTable("Message Type", "Amount")
 			table.AddRow("Raw_Message", fmt.Sprint(listener.Stats.RawMessageCount))
 			table.AddRow("Message", fmt.Sprint(listener.Stats.MessageCount))
-			var payloads []utils.Table
-			payloads = append(payloads, *table)
-			encoded, _ := json.Marshal(&payloads)
-			listener.Module.MqEventRouter.SendAll(utils.CreateEventBatch(listener.RootEventID,
+			encoded, err := json.Marshal([]*report.Table{table})
+			if err != nil {
+				log.Error().Err(err).Msg("cannot marshall table data")
+				return
+			}
+			err = listener.eventRouter.SendAll(utils.CreateEventBatch(listener.RootEventID,
 				&p_buff.Event{
 					Id:                 utils.CreateEventID(),
 					ParentId:           listener.RootEventID,
@@ -81,7 +92,10 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 					Body:               encoded,
 					AttachedMessageIds: nil,
 				},
-			), "event")
+			))
+			if err != nil {
+				log.Error().Err(err).Msg("cannot send event")
+			}
 		}
 	}()
 
@@ -96,7 +110,8 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 				listener.Stats.MessageCount += 1
 				msg := AnyMessage.GetMessage()
 				if msg.Metadata == nil {
-					listener.Module.MqEventRouter.SendAll(utils.CreateEventBatch(listener.RootEventID,
+					log.Error().Msg("Metadata not set for the message")
+					err := listener.eventRouter.SendAll(utils.CreateEventBatch(listener.RootEventID,
 						&p_buff.Event{
 							Id:                 utils.CreateEventID(),
 							ParentId:           listener.RootEventID,
@@ -108,11 +123,16 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 							Body:               nil,
 							AttachedMessageIds: nil,
 						},
-					), "event")
-					log.Err(errors.New("nil metadata")).Msg("Metadata not set for the message")
+					))
+					if err != nil {
+						log.Error().Err(err).Msg("cannot send event about metadata error")
+					}
 				} else if msg.Metadata.MessageType == listener.MessageType {
-					log.Debug().Str("Method", "Handle").Msgf("Received message with %v message type\n", listener.MessageType)
-					log.Debug().Str("Method", "Handle").Msgf("Consumed message session_alias and data ", msg.Metadata.Id.ConnectionId.SessionAlias, msg.Fields)
+					log.Debug().Str("Method", "Handle").
+						Str("message_type", msg.Metadata.MessageType).
+						Str("session_alias", msg.Metadata.Id.ConnectionId.SessionAlias).
+						Interface("data", msg.Fields).
+						Msg("received message")
 					listener.Function()
 					log.Debug().Str("Method", "Handle").Msg("Triggered the function")
 				}
@@ -120,12 +140,10 @@ func (listener *MessageTypeListener) Handle(delivery *MQcommon.Delivery, batch *
 		}
 	}
 
-	listener.Module.MqMessageRouter.SendAll(batch, "group")
-
-	return nil
+	return listener.messageRouter.SendAll(batch, "group")
 }
 
-func (listener MessageTypeListener) OnClose() error {
+func (listener *MessageTypeListener) OnClose() error {
 	log.Info().Msg("Listener OnClose")
 	return nil
 }
