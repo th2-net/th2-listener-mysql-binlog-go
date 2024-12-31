@@ -16,7 +16,13 @@
 
 package component
 
+type Connection struct {
+	Host     string
+	Port     uint16
+	Username string
+	Password string
+}
+
 type Configuration struct {
-	MessageType string
-	NBatches    int
+	Connection Connection
 }

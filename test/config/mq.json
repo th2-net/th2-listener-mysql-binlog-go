@@ -1,10 +1,10 @@
 {
   "queues": {
     "test_queue": {
-      "name": "task_queue",
-      "queue": "task_queue",
-      "exchange": "exchng",
-      "attributes": ["group", "subscribe", "publish"]
+      "name": "routing_key",
+      "queue": "",
+      "exchange": "th2",
+      "attributes": ["transport-group", "publish"]
     }
   }
 }

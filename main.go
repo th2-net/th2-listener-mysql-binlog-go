@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,17 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
+	"context"
+	"encoding/json"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/go-mysql-org/go-mysql/replication"
 	"github.com/th2-net/th2-common-go/pkg/common"
-	queueApi "github.com/th2-net/th2-common-go/pkg/queue"
 
 	p_buff "th2-grpc/th2_grpc_common"
 
@@ -33,6 +37,8 @@ import (
 	"github.com/th2-net/th2-common-go/pkg/modules/queue"
 	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component"
+	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
+	"github.com/th2-net/th2-read-mysql-binlog-go/component/message"
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -52,8 +58,8 @@ func main() {
 		panic(err)
 	}
 
-	var boxConf component.Configuration
-	if err := newFactory.GetCustomConfiguration(&boxConf); err != nil {
+	var conf component.Configuration
+	if err := newFactory.GetCustomConfiguration(&conf); err != nil {
 		panic(err)
 	}
 
@@ -81,56 +87,8 @@ func main() {
 		panic(err)
 	}
 	log.Info().
-		Str("component", "box_template_main").
-		Msg("Created root report event for box")
-
-	// Start listening for messages
-	log.Info().
-		Str("component", "box_template_main").
-		Msg(fmt.Sprintf("Start listening for %v messages\n", boxConf.MessageType))
-
-	typeListener := component.NewListener(
-		rootEventID,
-		module.GetMessageRouter(),
-		module.GetEventRouter(),
-		&boxConf,
-		func(args ...interface{}) {},
-	)
-
-	monitor1, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "one")
-	if err != nil {
-		panic(err)
-	}
-	defer func(monitor1 queueApi.Monitor) {
-		err := monitor1.Unsubscribe()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot unsubscribe from message 'one' pin")
-		}
-	}(monitor1)
-	monitor2, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "two")
-	if err != nil {
-		panic(err)
-	}
-	defer func(monitor2 queueApi.Monitor) {
-		err := monitor2.Unsubscribe()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot unsubscribe from message 'two' pin")
-		}
-	}(monitor2)
-
-	monitor3, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "three")
-	if err != nil {
-		panic(err)
-	}
-	defer func(monitor3 queueApi.Monitor) {
-		err := monitor3.Unsubscribe()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot unsubscribe from message 'three' pin")
-		}
-	}(monitor3)
+		Str("component", "read_mysql_binlog_main").
+		Msg("Created root report event for read-mysql-binlog")
 
 	promMod, err := prometheus.ModuleID.GetModule(newFactory)
 	if err != nil {
@@ -147,5 +105,103 @@ func main() {
 		log.Info().Interface("signal", s).Msg("shutdown component because of user signal")
 		return
 	}
+}
 
+func read(conf component.Connection) {
+	metadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password)
+	if err != nil {
+		log.Error().Err(err).Msg("Connect to database failure")
+		panic(err)
+	}
+	defer metadata.Close()
+
+	cfg := replication.BinlogSyncerConfig{
+		ServerID: 100,
+		Flavor:   "mysql",
+		Host:     conf.Host,
+		Port:     conf.Port,
+		User:     conf.Username,
+		Password: conf.Password,
+	}
+	syncer := replication.NewBinlogSyncer(cfg)
+	streamer, err := syncer.StartSync(mysql.Position{Name: "", Pos: uint32(0)})
+	if err != nil {
+		log.Error().Err(err).Msg("Start sync binlog failure")
+		panic(err)
+	}
+
+	// or you can start a GTID replication like
+	// gtidSet, _ := mysql.ParseGTIDSet(mysql.MySQLFlavor, "de278ad0-2106-11e4-9f8e-6edd0ca20947:1-2")
+	// streamer, _ := syncer.StartSyncGTID(gtidSet)
+	// the mysql GTID set is like this "de278ad0-2106-11e4-9f8e-6edd0ca20947:1-2" and uses mysql.MySQLFlavor
+	// the mariadb GTID set is like this "0-1-100" and uses mysql.MariaDBFlavor
+
+	var logName string
+	var seqNum int64
+	var timestamp time.Time
+
+	for {
+		e, _ := streamer.GetEvent(context.Background())
+		logEvent(e)
+		// Dump event
+		eventType := e.Header.EventType
+		switch eventType {
+		// case replication.QUERY_EVENT:
+		// 	queryEvent := e.Event.(*replication.QueryEvent)
+		// 	fmt.Printf("type: %s, query: %s\n", eventType, queryEvent.Query)
+		// 	break
+		case replication.WRITE_ROWS_EVENTv1,
+			replication.WRITE_ROWS_EVENTv2:
+			event := e.Event.(*replication.RowsEvent)
+			insert, err := message.CreateInsert(metadata, message.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
+			if err != nil {
+				log.Error().Err(err)
+				panic(err)
+			}
+			logMessage(insert)
+		case replication.UPDATE_ROWS_EVENTv1,
+			replication.UPDATE_ROWS_EVENTv2:
+			event := e.Event.(*replication.RowsEvent)
+			update, err := message.CreateUpdate(metadata, message.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
+			if err != nil {
+				log.Error().Err(err)
+				panic(err)
+			}
+			logMessage(update)
+		case replication.DELETE_ROWS_EVENTv1,
+			replication.DELETE_ROWS_EVENTv2:
+			event := e.Event.(*replication.RowsEvent)
+			delete, err := message.CreateDelete(metadata, message.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
+			if err != nil {
+				log.Error().Err(err)
+				panic(err)
+			}
+			logMessage(delete)
+		case replication.ANONYMOUS_GTID_EVENT:
+			event := e.Event.(*replication.GTIDEvent)
+			seqNum = event.SequenceNumber
+			timestamp = event.ImmediateCommitTime()
+		case replication.ROTATE_EVENT:
+			event := e.Event.(*replication.RotateEvent)
+			logName = string(event.NextLogName)
+		}
+	}
+}
+
+func logMessage(message interface{}) {
+	if log.Trace().Enabled() {
+		jsonValue, err := json.Marshal(message)
+		if err != nil {
+			log.Warn().Err(err).Msg("Message can't be write into trace log")
+		}
+		log.Trace().Msg(string(jsonValue))
+	}
+}
+
+func logEvent(event *replication.BinlogEvent) {
+	if log.Debug().Enabled() {
+		buf := new(bytes.Buffer)
+		event.Dump(buf)
+		log.Debug().Msgf("Read event - %s", buf)
+	}
 }
