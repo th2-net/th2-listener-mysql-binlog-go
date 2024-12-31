@@ -29,7 +29,7 @@ import (
 	"github.com/go-mysql-org/go-mysql/replication"
 	"github.com/th2-net/th2-common-go/pkg/common"
 
-	p_buff "th2-grpc/th2_grpc_common"
+	"github.com/th2-net/th2-common-go/pkg/common/grpc/th2_grpc_common"
 
 	"github.com/rs/zerolog/log"
 	"github.com/th2-net/th2-common-go/pkg/factory"
@@ -39,7 +39,6 @@ import (
 	"github.com/th2-net/th2-read-mysql-binlog-go/component"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/message"
-	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func main() {
@@ -71,12 +70,11 @@ func main() {
 	// Create a root event
 	rootEventID := utils.CreateEventID()
 	err = module.GetEventRouter().SendAll(utils.CreateEventBatch(nil,
-		&p_buff.Event{
+		&th2_grpc_common.Event{
 			Id:                 rootEventID,
 			ParentId:           nil,
-			StartTimestamp:     timestamp.Now(),
 			EndTimestamp:       nil,
-			Status:             0,
+			Status:             th2_grpc_common.EventStatus_SUCCESS,
 			Name:               "Root Event",
 			Type:               "Message",
 			Body:               nil,
@@ -99,12 +97,11 @@ func main() {
 	livenessMonitor.Enable()
 	readinessMonitor.Enable()
 
+	read(conf.Connection)
+
 	// Start listening for shutdown signal
-	select {
-	case s := <-sigCh:
-		log.Info().Interface("signal", s).Msg("shutdown component because of user signal")
-		return
-	}
+	s := <-sigCh
+	log.Info().Interface("signal", s).Msg("shutdown component because of user signal")
 }
 
 func read(conf component.Connection) {

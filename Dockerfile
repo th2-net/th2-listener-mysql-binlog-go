@@ -1,7 +1,6 @@
 FROM golang:1.23 AS build
 RUN apt update \
-    && apt install -y make \
-    && apt install -y protobuf-compiler
+    && apt install -y make
 WORKDIR /app
 ADD . /app
 RUN make
