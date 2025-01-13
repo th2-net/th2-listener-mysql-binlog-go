@@ -186,19 +186,13 @@ func read(conf component.Connection) {
 }
 
 func logMessage(message interface{}) {
-	if log.Trace().Enabled() {
-		jsonValue, err := json.Marshal(message)
-		if err != nil {
-			log.Warn().Err(err).Msg("Message can't be write into trace log")
-		}
-		log.Trace().Msg(string(jsonValue))
-	}
+	log.Trace().Any("message", message).Msg("message received")
 }
 
 func logEvent(event *replication.BinlogEvent) {
 	if log.Debug().Enabled() {
 		buf := new(bytes.Buffer)
 		event.Dump(buf)
-		log.Debug().Msgf("Read event - %s", buf)
+		log.Debug().Str("event", buf.toString()).Msg("read event")
 	}
 }

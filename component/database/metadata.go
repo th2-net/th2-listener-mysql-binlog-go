@@ -75,7 +75,7 @@ func (metadata *Metadata) loadFields(schema string, table string) ([]string, err
 }
 
 func (metadata *Metadata) GetFields(schema string, table string) ([]string, error) {
-	schemaMetadata := metadata.schemas[schema]
+	schemaMetadata, exist := metadata.schemas[schema]
 	var tableMetadata TableMetadata = nil
 	var err error = nil
 
@@ -99,6 +99,6 @@ func (metadata *Metadata) GetFields(schema string, table string) ([]string, erro
 	return tableMetadata, err
 }
 
-func (metadata *Metadata) Close() {
-	metadata.db.Close()
+func (metadata *Metadata) Close() error {
+	return metadata.db.Close()
 }
