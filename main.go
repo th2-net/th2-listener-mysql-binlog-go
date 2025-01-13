@@ -19,10 +19,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
@@ -37,34 +35,29 @@ import (
 	"github.com/th2-net/th2-common-go/pkg/modules/queue"
 	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component"
+	"github.com/th2-net/th2-read-mysql-binlog-go/component/bean"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
-	"github.com/th2-net/th2-read-mysql-binlog-go/component/message"
 )
 
 func main() {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
 	newFactory := factory.New()
 	defer func(newFactory common.Factory) {
-		err := newFactory.Close()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot close factory")
+		if err := newFactory.Close(); err != nil {
+			log.Error().Err(err).Msg("cannot close factory")
 		}
 	}(newFactory)
 	if err := newFactory.Register(queue.NewRabbitMqModule); err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("'NewRabbitMqModule' can't be registered")
 	}
 
 	var conf component.Configuration
 	if err := newFactory.GetCustomConfiguration(&conf); err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("Getting custom config failure")
 	}
 
 	module, err := queue.ModuleID.GetModule(newFactory)
 	if err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("Getting 'NewRabbitMqModule' failure")
 	}
 
 	// Create a root event
@@ -82,7 +75,7 @@ func main() {
 		},
 	))
 	if err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("Sending root event failure")
 	}
 	log.Info().
 		Str("component", "read_mysql_binlog_main").
@@ -90,7 +83,7 @@ func main() {
 
 	promMod, err := prometheus.ModuleID.GetModule(newFactory)
 	if err != nil {
-		panic(err)
+		log.Panic().Err(err).Msg("Getting 'PrometheusModule' failure")
 	}
 	livenessMonitor := promMod.GetLivenessArbiter().RegisterMonitor("liveness_monitor")
 	readinessMonitor := promMod.GetReadinessArbiter().RegisterMonitor("readiness_monitor")
@@ -99,18 +92,19 @@ func main() {
 
 	read(conf.Connection)
 
-	// Start listening for shutdown signal
-	s := <-sigCh
-	log.Info().Interface("signal", s).Msg("shutdown component because of user signal")
+	log.Info().Msg("shutdown component")
 }
 
 func read(conf component.Connection) {
 	metadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password)
 	if err != nil {
-		log.Error().Err(err).Msg("Connect to database failure")
-		panic(err)
+		log.Panic().Err(err).Msg("Connect to database failure")
 	}
-	defer metadata.Close()
+	defer func() {
+		if err := metadata.Close(); err != nil {
+			log.Error().Err(err).Msg("Closing DB metadata failure")
+		}
+	}()
 
 	cfg := replication.BinlogSyncerConfig{
 		ServerID: 100,
@@ -123,8 +117,7 @@ func read(conf component.Connection) {
 	syncer := replication.NewBinlogSyncer(cfg)
 	streamer, err := syncer.StartSync(mysql.Position{Name: "", Pos: uint32(0)})
 	if err != nil {
-		log.Error().Err(err).Msg("Start sync binlog failure")
-		panic(err)
+		log.Panic().Err(err).Msg("Start sync binlog failure")
 	}
 
 	// or you can start a GTID replication like
@@ -137,8 +130,14 @@ func read(conf component.Connection) {
 	var seqNum int64
 	var timestamp time.Time
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	for {
-		e, _ := streamer.GetEvent(context.Background())
+		e, err := streamer.GetEvent(ctx)
+		if err != nil {
+			log.Panic().Err(err).Msg("Getting binlog event failure")
+		}
 		logEvent(e)
 		// Dump event
 		eventType := e.Header.EventType
@@ -150,28 +149,25 @@ func read(conf component.Connection) {
 		case replication.WRITE_ROWS_EVENTv1,
 			replication.WRITE_ROWS_EVENTv2:
 			event := e.Event.(*replication.RowsEvent)
-			insert, err := message.CreateInsert(metadata, message.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
+			insert, err := bean.CreateInsert(metadata, bean.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
 			if err != nil {
-				log.Error().Err(err)
-				panic(err)
+				log.Panic().Err(err).Msg("Insert bean can't be crated")
 			}
 			logMessage(insert)
 		case replication.UPDATE_ROWS_EVENTv1,
 			replication.UPDATE_ROWS_EVENTv2:
 			event := e.Event.(*replication.RowsEvent)
-			update, err := message.CreateUpdate(metadata, message.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
+			update, err := bean.CreateUpdate(metadata, bean.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
 			if err != nil {
-				log.Error().Err(err)
-				panic(err)
+				log.Panic().Err(err).Msg("Update bean can't be crated")
 			}
 			logMessage(update)
 		case replication.DELETE_ROWS_EVENTv1,
 			replication.DELETE_ROWS_EVENTv2:
 			event := e.Event.(*replication.RowsEvent)
-			delete, err := message.CreateDelete(metadata, message.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
+			delete, err := bean.CreateDelete(metadata, bean.Header{LogName: logName, LogPos: e.Header.LogPos, SeqNum: seqNum, Timestamp: timestamp}, event)
 			if err != nil {
-				log.Error().Err(err)
-				panic(err)
+				log.Panic().Err(err).Msg("Delete bean can't be crated")
 			}
 			logMessage(delete)
 		case replication.ANONYMOUS_GTID_EVENT:
@@ -193,6 +189,6 @@ func logEvent(event *replication.BinlogEvent) {
 	if log.Debug().Enabled() {
 		buf := new(bytes.Buffer)
 		event.Dump(buf)
-		log.Debug().Str("event", buf.toString()).Msg("read event")
+		log.Debug().Str("event", buf.String()).Msg("read event")
 	}
 }

@@ -32,3 +32,6 @@ go.work.sum
 
 th2-grpc/
 main
+
+# bin file
+/th2-read-mysql-binlog-go

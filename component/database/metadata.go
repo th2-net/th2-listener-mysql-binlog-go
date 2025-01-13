@@ -75,24 +75,26 @@ func (metadata *Metadata) loadFields(schema string, table string) ([]string, err
 }
 
 func (metadata *Metadata) GetFields(schema string, table string) ([]string, error) {
-	schemaMetadata, exist := metadata.schemas[schema]
+	var schemaMetadata SchemaMetadata = nil
 	var tableMetadata TableMetadata = nil
+	var exist bool = false
 	var err error = nil
+	schemaMetadata, exist = metadata.schemas[schema]
 
-	if schemaMetadata == nil {
+	if exist {
+		tableMetadata, exist = schemaMetadata[table]
+		if !exist {
+			tableMetadata, err = metadata.loadFields(schema, table)
+			if err == nil {
+				schemaMetadata[table] = tableMetadata
+			}
+		}
+	} else {
 		tableMetadata, err = metadata.loadFields(schema, table)
 		if err == nil {
 			schemaMetadata = make(SchemaMetadata)
 			metadata.schemas[schema] = schemaMetadata
 			schemaMetadata[table] = tableMetadata
-		}
-	} else {
-		tableMetadata = schemaMetadata[table]
-		if tableMetadata == nil {
-			tableMetadata, err = metadata.loadFields(schema, table)
-			if err == nil {
-				schemaMetadata[table] = tableMetadata
-			}
 		}
 	}
 
