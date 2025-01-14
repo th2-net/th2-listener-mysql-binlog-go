@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Exactpro (Exactpro Systems Limited)
+ * Copyright 2024-2025 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,12 +90,15 @@ func main() {
 	livenessMonitor.Enable()
 	readinessMonitor.Enable()
 
-	read(conf.Connection)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	read(ctx, conf.Connection)
 
 	log.Info().Msg("shutdown component")
 }
 
-func read(conf component.Connection) {
+func read(ctx context.Context, conf component.Connection) {
 	metadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password)
 	if err != nil {
 		log.Panic().Err(err).Msg("Connect to database failure")
@@ -129,9 +132,6 @@ func read(conf component.Connection) {
 	var logName string
 	var seqNum int64
 	var timestamp time.Time
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
 	for {
 		e, err := streamer.GetEvent(ctx)
