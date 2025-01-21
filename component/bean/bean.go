@@ -17,10 +17,6 @@
 package bean
 
 import (
-	"fmt"
-	"time"
-
-	"github.com/go-mysql-org/go-mysql/replication"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
 )
 
@@ -30,28 +26,11 @@ const (
 	deleteOperation = "DELETE"
 )
 
-type Message interface {
-}
-
-type Header struct {
-	LogName   string
-	LogPos    uint32
-	SeqNum    int64
-	Timestamp time.Time
-}
-
-type Metadata struct {
-	Schema    string
-	Table     string
-	Operation string
-}
-
 type Values map[string]interface{}
 
 type Insert struct {
-	Header
-	Metadata
-	Inserted []Values
+	Operation string
+	Inserted  []Values
 }
 
 type UpdatePair struct {
@@ -60,48 +39,28 @@ type UpdatePair struct {
 }
 
 type Update struct {
-	Header
-	Metadata
-	Updated []UpdatePair
+	Operation string
+	Updated   []UpdatePair
 }
 
 type Delete struct {
-	Header
-	Metadata
-	Deleted []Values
+	Operation string
+	Deleted   []Values
 }
 
-func CreateInsert(metadata *database.Metadata, header Header, event *replication.RowsEvent) (*Insert, error) {
-	schema := string(event.Table.Schema)
-	table := string(event.Table.Table)
-	fields, err := metadata.GetFields(schema, table)
-	if err != nil {
-		return nil, fmt.Errorf("create %s struct failure: %w", insertOperation, err)
-	}
-	return &Insert{Header: header, Metadata: Metadata{Schema: schema, Table: table, Operation: insertOperation}, Inserted: createValues(fields, event.Rows)}, nil
+func NewInsert(fields []string, rows [][]interface{}) *Insert {
+	return &Insert{Operation: insertOperation, Inserted: *createValues(fields, rows)}
 }
 
-func CreateUpdate(metadata *database.Metadata, header Header, event *replication.RowsEvent) (*Update, error) {
-	schema := string(event.Table.Schema)
-	table := string(event.Table.Table)
-	fields, err := metadata.GetFields(schema, table)
-	if err != nil {
-		return nil, fmt.Errorf("create %s struct failure: %w", updateOperation, err)
-	}
-	return &Update{Header: header, Metadata: Metadata{Schema: schema, Table: table, Operation: updateOperation}, Updated: createUpdatePairs(fields, event.Rows)}, nil
+func NewUpdate(fields []string, rows [][]interface{}) *Update {
+	return &Update{Operation: updateOperation, Updated: *createUpdatePairs(fields, rows)}
 }
 
-func CreateDelete(metadata *database.Metadata, header Header, event *replication.RowsEvent) (*Delete, error) {
-	schema := string(event.Table.Schema)
-	table := string(event.Table.Table)
-	fields, err := metadata.GetFields(schema, table)
-	if err != nil {
-		return nil, fmt.Errorf("create %s struct failure: %w", deleteOperation, err)
-	}
-	return &Delete{Header: header, Metadata: Metadata{Schema: schema, Table: table, Operation: deleteOperation}, Deleted: createValues(fields, event.Rows)}, nil
+func NewDelete(fields []string, rows [][]interface{}) *Delete {
+	return &Delete{Operation: deleteOperation, Deleted: *createValues(fields, rows)}
 }
 
-func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) []Values {
+func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) *[]Values {
 	result := make([]Values, len(rows))
 	for index, row := range rows {
 		values := Values{}
@@ -110,10 +69,10 @@ func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) []
 			values[tableMetadata[columnIndex]] = columnValue
 		}
 	}
-	return result
+	return &result
 }
 
-func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{}) []UpdatePair {
+func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{}) *[]UpdatePair {
 	result := make([]UpdatePair, len(rows)/2)
 	var pair UpdatePair = UpdatePair{}
 	for index, row := range rows {
@@ -129,5 +88,5 @@ func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{
 			pair = UpdatePair{}
 		}
 	}
-	return result
+	return &result
 }

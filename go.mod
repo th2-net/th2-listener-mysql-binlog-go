@@ -1,10 +1,11 @@
 module github.com/th2-net/th2-read-mysql-binlog-go
 
-go 1.23
+go 1.23.0
 
 require (
-	github.com/rs/zerolog v1.29.1
+	github.com/rs/zerolog v1.33.0
 	github.com/th2-net/th2-common-go v0.2.1
+	github.com/th2-net/th2-common-mq-batcher-go v0.0.0-20250121112433-b81ca9535039
 	github.com/th2-net/th2-common-utils-go v0.1.0
 )
 
@@ -20,6 +21,7 @@ require (
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726 // indirect
 	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07 // indirect
+	github.com/th2-net/transport-go v0.0.2-0.20250121104533-0892039bb84b // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
@@ -38,7 +40,7 @@ require (
 	github.com/google/uuid v1.3.1 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect

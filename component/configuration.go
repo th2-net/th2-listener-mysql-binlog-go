@@ -25,4 +25,6 @@ type Connection struct {
 
 type Configuration struct {
 	Connection Connection
+	Group      string
+	Alias      string
 }

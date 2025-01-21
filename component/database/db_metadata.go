@@ -27,23 +27,54 @@ type TableMetadata []string
 
 type SchemaMetadata map[string]TableMetadata
 
-type Metadata struct {
+type DbMetadata struct {
 	db      *sql.DB
 	schemas map[string]SchemaMetadata
 }
 
-func CreateMetadata(host string, port uint16, username string, password string) (*Metadata, error) {
+func CreateMetadata(host string, port uint16, username string, password string) (*DbMetadata, error) {
 	dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/information_schema", username, password, host, port)
 	db, err := sql.Open("mysql", dataSourceName)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open mysql db for getting information_schema data failure: %w", err)
 	}
 
-	return &Metadata{db: db, schemas: make(map[string]SchemaMetadata)}, nil
+	return &DbMetadata{db: db, schemas: make(map[string]SchemaMetadata)}, nil
 }
 
-func (metadata *Metadata) loadFields(schema string, table string) ([]string, error) {
+func (metadata *DbMetadata) GetFields(schema string, table string) ([]string, error) {
+	var schemaMetadata SchemaMetadata = nil
+	var tableMetadata TableMetadata = nil
+	var exist bool = false
+	var err error = nil
+	schemaMetadata, exist = metadata.schemas[schema]
+
+	if exist {
+		tableMetadata, exist = schemaMetadata[table]
+		if !exist {
+			tableMetadata, err = metadata.loadFields(schema, table)
+			if err == nil {
+				schemaMetadata[table] = tableMetadata
+			}
+		}
+	} else {
+		tableMetadata, err = metadata.loadFields(schema, table)
+		if err == nil {
+			schemaMetadata = make(SchemaMetadata)
+			metadata.schemas[schema] = schemaMetadata
+			schemaMetadata[table] = tableMetadata
+		}
+	}
+
+	return tableMetadata, err
+}
+
+func (metadata *DbMetadata) Close() error {
+	return metadata.db.Close()
+}
+
+func (metadata *DbMetadata) loadFields(schema string, table string) ([]string, error) {
 	rows, err := metadata.db.Query(
 		"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
 		schema,
@@ -72,35 +103,4 @@ func (metadata *Metadata) loadFields(schema string, table string) ([]string, err
 	}
 
 	return fields, nil
-}
-
-func (metadata *Metadata) GetFields(schema string, table string) ([]string, error) {
-	var schemaMetadata SchemaMetadata = nil
-	var tableMetadata TableMetadata = nil
-	var exist bool = false
-	var err error = nil
-	schemaMetadata, exist = metadata.schemas[schema]
-
-	if exist {
-		tableMetadata, exist = schemaMetadata[table]
-		if !exist {
-			tableMetadata, err = metadata.loadFields(schema, table)
-			if err == nil {
-				schemaMetadata[table] = tableMetadata
-			}
-		}
-	} else {
-		tableMetadata, err = metadata.loadFields(schema, table)
-		if err == nil {
-			schemaMetadata = make(SchemaMetadata)
-			metadata.schemas[schema] = schemaMetadata
-			schemaMetadata[table] = tableMetadata
-		}
-	}
-
-	return tableMetadata, err
-}
-
-func (metadata *Metadata) Close() error {
-	return metadata.db.Close()
 }
