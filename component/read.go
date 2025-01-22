@@ -118,13 +118,21 @@ func (r *Read) Read(ctx context.Context) error {
 		// 	break
 		case replication.WRITE_ROWS_EVENTv1,
 			replication.WRITE_ROWS_EVENTv2:
-			r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert)
+			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
+				return fmt.Errorf("processing write event failure: %w", err)
+			}
 		case replication.UPDATE_ROWS_EVENTv1,
 			replication.UPDATE_ROWS_EVENTv2:
 			r.processEvent(e, logName, logSeqNum, logTimestamp, newUpdate)
+			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
+				return fmt.Errorf("processing update event failure: %w", err)
+			}
 		case replication.DELETE_ROWS_EVENTv1,
 			replication.DELETE_ROWS_EVENTv2:
 			r.processEvent(e, logName, logSeqNum, logTimestamp, newDelete)
+			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
+				return fmt.Errorf("processing delete event failure: %w", err)
+			}
 		case replication.ANONYMOUS_GTID_EVENT:
 			event := e.Event.(*replication.GTIDEvent)
 			logSeqNum = event.SequenceNumber
