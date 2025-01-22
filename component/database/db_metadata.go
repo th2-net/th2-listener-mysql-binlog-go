@@ -18,6 +18,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -28,55 +29,56 @@ type TableMetadata []string
 
 type SchemaMetadata map[string]TableMetadata
 
-type DbMetadata struct {
-	db      *sql.DB
-	schemas map[string]SchemaMetadata
-}
+type DbMetadata map[string]SchemaMetadata
 
-func CreateMetadata(host string, port uint16, username string, password string) (*DbMetadata, error) {
+func CreateMetadata(host string, port uint16, username string, password string, schemas map[string][]string) (*DbMetadata, error) {
+	if len(schemas) == 0 {
+		return nil, errors.New("no one schema isn't configured for loading db metadata")
+	}
 	dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/information_schema", username, password, host, port)
 	db, err := sql.Open("mysql", dataSourceName)
-
 	if err != nil {
 		return nil, fmt.Errorf("open mysql db for getting information_schema data failure: %w", err)
 	}
-
-	return &DbMetadata{db: db, schemas: make(map[string]SchemaMetadata)}, nil
-}
-
-func (metadata *DbMetadata) GetFields(schema string, table string) ([]string, error) {
-	var schemaMetadata SchemaMetadata = nil
-	var tableMetadata TableMetadata = nil
-	var exist bool = false
-	var err error = nil
-	schemaMetadata, exist = metadata.schemas[schema]
-
-	if exist {
-		tableMetadata, exist = schemaMetadata[table]
-		if !exist {
-			tableMetadata, err = metadata.loadFields(schema, table)
-			if err == nil {
-				schemaMetadata[table] = tableMetadata
-			}
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Warn().Msg("Metadata db connection closed ungracefully")
 		}
-	} else {
-		tableMetadata, err = metadata.loadFields(schema, table)
-		if err == nil {
-			schemaMetadata = make(SchemaMetadata)
-			metadata.schemas[schema] = schemaMetadata
+	}()
+
+	dbMetadata := make(DbMetadata, len(schemas))
+	for schema, tables := range schemas {
+		schemaMetadata := make(SchemaMetadata, len(tables))
+		for _, table := range tables {
+			if _, ok := schemaMetadata[table]; ok {
+				continue
+			}
+			tableMetadata, err := loadFields(db, schema, table)
+			if err != nil {
+				return nil, err
+			}
 			schemaMetadata[table] = tableMetadata
 		}
+		dbMetadata[schema] = schemaMetadata
 	}
 
-	return tableMetadata, err
+	return &dbMetadata, nil
 }
 
-func (metadata *DbMetadata) Close() error {
-	return metadata.db.Close()
+func (metadata DbMetadata) GetFields(schema string, table string) []string {
+	schemaMetadata, ok := metadata[schema]
+	if !ok {
+		return nil
+	}
+	tableMetadata, ok := schemaMetadata[table]
+	if !ok {
+		return nil
+	}
+	return tableMetadata
 }
 
-func (metadata *DbMetadata) loadFields(schema string, table string) ([]string, error) {
-	rows, err := metadata.db.Query(
+func loadFields(db *sql.DB, schema string, table string) ([]string, error) {
+	rows, err := db.Query(
 		"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
 		schema,
 		table,

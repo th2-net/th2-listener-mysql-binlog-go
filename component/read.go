@@ -50,8 +50,8 @@ type Read struct {
 	alias      string
 }
 
-func NewRead(batcher b.MqBatcher[b.MessageArguments], conf Connection, alias string) (*Read, error) {
-	dbMetadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password)
+func NewRead(batcher b.MqBatcher[b.MessageArguments], conf Connection, schemas map[string][]string, alias string) (*Read, error) {
+	dbMetadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
 		return nil, errors.New("connect to database failure")
 	}
@@ -145,9 +145,6 @@ func (r *Read) Read(ctx context.Context) error {
 }
 
 func (r *Read) Close() error {
-	if err := r.dbMetadata.Close(); err != nil {
-		return fmt.Errorf("closing DB metadata failure: %w", err)
-	}
 	return nil
 }
 
@@ -155,12 +152,13 @@ func (r *Read) processEvent(event *replication.BinlogEvent, logName string, logS
 	rowsEvent := event.Event.(*replication.RowsEvent)
 	schema := string(rowsEvent.Table.Schema)
 	table := string(rowsEvent.Table.Table)
-	metadata := createMetadata(schema, table, logName, event.Header.LogPos, logSeqNum, logTimestamp)
-	fields, err := r.dbMetadata.GetFields(schema, table)
-	if err != nil {
-		return fmt.Errorf("getting files name for %s.%s failure: %w", schema, table, err)
+	fields := r.dbMetadata.GetFields(schema, table)
+	if len(fields) == 0 {
+		log.Trace().Str("schema", schema).Str("table", table).Msg("Event skipped")
+		return nil
 	}
 	bean := createBean(fields, rowsEvent.Rows)
+	metadata := createMetadata(schema, table, logName, event.Header.LogPos, logSeqNum, logTimestamp)
 	if err := r.batchMessage(bean, r.alias, metadata); err != nil {
 		return fmt.Errorf("batching event failure: %w", err)
 	}

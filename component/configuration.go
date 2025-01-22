@@ -23,8 +23,11 @@ type Connection struct {
 	Password string
 }
 
+type SchemasConf = map[string][]string
+
 type Configuration struct {
 	Connection Connection
+	Schemas    SchemasConf
 	Group      string
 	Alias      string
 }
