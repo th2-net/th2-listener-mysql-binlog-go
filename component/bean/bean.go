@@ -48,19 +48,19 @@ type Delete struct {
 	Deleted   []Values
 }
 
-func NewInsert(fields []string, rows [][]interface{}) *Insert {
-	return &Insert{Operation: insertOperation, Inserted: *createValues(fields, rows)}
+func NewInsert(fields []string, rows [][]interface{}) Insert {
+	return Insert{Operation: insertOperation, Inserted: createValues(fields, rows)}
 }
 
-func NewUpdate(fields []string, rows [][]interface{}) *Update {
-	return &Update{Operation: updateOperation, Updated: *createUpdatePairs(fields, rows)}
+func NewUpdate(fields []string, rows [][]interface{}) Update {
+	return Update{Operation: updateOperation, Updated: createUpdatePairs(fields, rows)}
 }
 
-func NewDelete(fields []string, rows [][]interface{}) *Delete {
-	return &Delete{Operation: deleteOperation, Deleted: *createValues(fields, rows)}
+func NewDelete(fields []string, rows [][]interface{}) Delete {
+	return Delete{Operation: deleteOperation, Deleted: createValues(fields, rows)}
 }
 
-func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) *[]Values {
+func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) []Values {
 	result := make([]Values, len(rows))
 	for index, row := range rows {
 		values := Values{}
@@ -69,10 +69,10 @@ func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) *[
 			values[tableMetadata[columnIndex]] = columnValue
 		}
 	}
-	return &result
+	return result
 }
 
-func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{}) *[]UpdatePair {
+func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{}) []UpdatePair {
 	result := make([]UpdatePair, len(rows)/2)
 	var pair UpdatePair = UpdatePair{}
 	for index, row := range rows {
@@ -88,5 +88,5 @@ func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{
 			pair = UpdatePair{}
 		}
 	}
-	return &result
+	return result
 }

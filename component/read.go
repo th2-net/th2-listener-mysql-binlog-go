@@ -33,12 +33,12 @@ import (
 )
 
 const (
-	log_name         = "name"
-	log_pos          = "pos"
-	log_seq_num      = "seq"
-	log_timestamp    = "timestamp"
-	log_event_schema = "schema"
-	log_event_table  = "table"
+	logNameProp        = "name"
+	logPosProp         = "pos"
+	logSeqNumProp      = "seq"
+	logTimestampProp   = "timestamp"
+	logEventSchemaProp = "schema"
+	logEventTableProp  = "table"
 )
 
 type newBean func(fields []string, rows [][]interface{}) interface{}
@@ -50,7 +50,7 @@ type Read struct {
 	alias      string
 }
 
-func NewRead(batcher *b.MqBatcher[b.MessageArguments], conf Connection, alias string) (*Read, error) {
+func NewRead(batcher b.MqBatcher[b.MessageArguments], conf Connection, alias string) (*Read, error) {
 	dbMetadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password)
 	if err != nil {
 		return nil, errors.New("connect to database failure")
@@ -58,7 +58,7 @@ func NewRead(batcher *b.MqBatcher[b.MessageArguments], conf Connection, alias st
 	return &Read{
 		dbMetadata: dbMetadata,
 		conf:       conf,
-		batcher:    *batcher,
+		batcher:    batcher,
 		alias:      alias,
 	}, nil
 }
@@ -99,6 +99,10 @@ func (r *Read) Read(ctx context.Context) error {
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("checking context err failure: %w", err)
+		}
+
 		e, err := streamer.GetEvent(ctx)
 		if err != nil {
 			return fmt.Errorf("getting binlog event failure: %w", err)
@@ -179,11 +183,11 @@ func logEvent(event *replication.BinlogEvent) {
 
 func createMetadata(schema string, table string, logName string, logPos uint32, logSeqNum int64, logTimestamp time.Time) map[string]string {
 	return map[string]string{
-		log_name:         logName,
-		log_pos:          fmt.Sprint(logPos),
-		log_seq_num:      fmt.Sprint(logSeqNum),
-		log_timestamp:    fmt.Sprint(logTimestamp.UnixNano()),
-		log_event_schema: schema,
-		log_event_table:  table,
+		logNameProp:        logName,
+		logPosProp:         fmt.Sprint(logPos),
+		logSeqNumProp:      fmt.Sprint(logSeqNum),
+		logTimestampProp:   fmt.Sprint(logTimestamp.UnixNano()),
+		logEventSchemaProp: schema,
+		logEventTableProp:  table,
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/rs/zerolog/log"
 )
 
 type TableMetadata []string
@@ -92,15 +93,19 @@ func (metadata *DbMetadata) loadFields(schema string, table string) ([]string, e
 
 	var columnName string
 	for rows.Next() {
-		err := rows.Scan(&columnName)
-
-		if err != nil {
+		if err := rows.Scan(&columnName); err != nil {
 			return nil, fmt.Errorf("scan query result for getting %s.%s table metadata failure: %w", schema, table, err)
 		}
 
 		fields = append(fields, columnName)
 		i++
 	}
+
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("loaded field names for %s.%s table failure", schema, table)
+	}
+
+	log.Info().Strs("fields", fields).Msgf("Loaded field names for %s.%s table", schema, table)
 
 	return fields, nil
 }

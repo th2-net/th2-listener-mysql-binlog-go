@@ -109,9 +109,11 @@ func main() {
 	livenessMonitor := promMod.GetLivenessArbiter().RegisterMonitor("liveness_monitor")
 	readinessMonitor := promMod.GetReadinessArbiter().RegisterMonitor("readiness_monitor")
 	livenessMonitor.Enable()
+	defer livenessMonitor.Disable()
 	readinessMonitor.Enable()
+	defer readinessMonitor.Disable()
 
-	read, err := component.NewRead(&batcher, conf.Connection, alias)
+	read, err := component.NewRead(batcher, conf.Connection, alias)
 	if err != nil {
 		log.Panic().Err(err).Msg("Read creation failure")
 	}
