@@ -170,6 +170,7 @@ func (r *Read) batchMessage(bean any, alias string, metadata map[string]string) 
 	}); err != nil {
 		return fmt.Errorf("batching failure: %w", err)
 	}
+	log.Trace().Msg("Message is sent to batcher")
 	return nil
 }
 
