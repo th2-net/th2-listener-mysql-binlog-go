@@ -125,13 +125,11 @@ func (r *Read) Read(ctx context.Context) error {
 			}
 		case replication.UPDATE_ROWS_EVENTv1,
 			replication.UPDATE_ROWS_EVENTv2:
-			r.processEvent(e, logName, logSeqNum, logTimestamp, newUpdate)
 			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
 				return fmt.Errorf("processing update event failure: %w", err)
 			}
 		case replication.DELETE_ROWS_EVENTv1,
 			replication.DELETE_ROWS_EVENTv2:
-			r.processEvent(e, logName, logSeqNum, logTimestamp, newDelete)
 			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
 				return fmt.Errorf("processing delete event failure: %w", err)
 			}
