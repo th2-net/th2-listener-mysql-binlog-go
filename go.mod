@@ -6,7 +6,8 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/th2-net/th2-common-go v0.2.1
 	github.com/th2-net/th2-common-mq-batcher-go v0.0.0-20250121112433-b81ca9535039
-	github.com/th2-net/th2-common-utils-go v0.1.0
+	github.com/th2-net/th2-common-utils-go v0.2.0
+	google.golang.org/protobuf v1.36.3
 )
 
 require (
@@ -26,7 +27,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
 
@@ -37,7 +37,7 @@ require (
 	github.com/go-mysql-org/go-mysql v1.10.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/uuid v1.3.1 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect

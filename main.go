@@ -23,10 +23,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/google/uuid"
 	"github.com/th2-net/th2-common-go/pkg/common"
 	"github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/th2-net/th2-common-go/pkg/common/grpc/th2_grpc_common"
 
@@ -69,12 +67,7 @@ func main() {
 
 	// Create a root event TODO: use utils.CreateEventID(book, scope) method
 	componentConf := newFactory.GetBoxConfig()
-	rootEventID := &th2_grpc_common.EventID{
-		BookName:       componentConf.Book,
-		Scope:          componentConf.Name,
-		StartTimestamp: timestamppb.Now(),
-		Id:             uuid.New().String(),
-	}
+	rootEventID := utils.CreateEventID(componentConf.Book, componentConf.Name)
 	err = module.GetEventRouter().SendAll(utils.CreateEventBatch(nil,
 		&th2_grpc_common.Event{
 			Id:                 rootEventID,
