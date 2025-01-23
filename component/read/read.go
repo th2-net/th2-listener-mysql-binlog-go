@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -40,24 +39,26 @@ const (
 	logTimestampProp   = "timestamp"
 	logEventSchemaProp = "schema"
 	logEventTableProp  = "table"
+
+	msgProtocol = "json"
 )
 
 type newBean func(fields []string, rows [][]interface{}) interface{}
 
 type Read struct {
-	dbMetadata *database.DbMetadata
+	dbMetadata database.DbMetadata
 	batcher    b.MqBatcher[b.MessageArguments]
 	conf       conf.Connection
 	alias      string
 }
 
 func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, alias string) (*Read, error) {
-	dbMetadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
+	dbMetadata, err := database.LoadMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
-		return nil, errors.New("connect to database failure")
+		return nil, fmt.Errorf("loading schema metadata ta failure: %w", err)
 	}
 	return &Read{
-		dbMetadata: dbMetadata,
+		dbMetadata: *dbMetadata,
 		conf:       conf,
 		batcher:    batcher,
 		alias:      alias,
@@ -172,8 +173,10 @@ func (r *Read) batchMessage(bean any, alias string, metadata map[string]string) 
 		return fmt.Errorf("marshaling failure: %w", err)
 	}
 	if err := r.batcher.Send(data, b.MessageArguments{
-		Metadata: metadata,
-		Alias:    alias,
+		Metadata:  metadata,
+		Alias:     alias,
+		Direction: b.InDirection,
+		Protocol:  msgProtocol,
 	}); err != nil {
 		return fmt.Errorf("batching failure: %w", err)
 	}

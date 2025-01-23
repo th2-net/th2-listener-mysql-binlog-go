@@ -32,7 +32,7 @@ type SchemaMetadata map[string]TableMetadata
 
 type DbMetadata map[string]SchemaMetadata
 
-func CreateMetadata(host string, port uint16, username string, password string, schemas conf.SchemasConf) (*DbMetadata, error) {
+func LoadMetadata(host string, port uint16, username string, password string, schemas conf.SchemasConf) (*DbMetadata, error) {
 	if len(schemas) == 0 {
 		return nil, errors.New("no one schema isn't configured for loading db metadata")
 	}
