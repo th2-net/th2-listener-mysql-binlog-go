@@ -23,6 +23,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/rs/zerolog/log"
+	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
 )
 
 type TableMetadata []string
@@ -31,7 +32,7 @@ type SchemaMetadata map[string]TableMetadata
 
 type DbMetadata map[string]SchemaMetadata
 
-func CreateMetadata(host string, port uint16, username string, password string, schemas map[string][]string) (*DbMetadata, error) {
+func CreateMetadata(host string, port uint16, username string, password string, schemas conf.SchemasConf) (*DbMetadata, error) {
 	if len(schemas) == 0 {
 		return nil, errors.New("no one schema isn't configured for loading db metadata")
 	}

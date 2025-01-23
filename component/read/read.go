@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package component
+package read
 
 import (
 	"bytes"
@@ -29,6 +29,7 @@ import (
 	"github.com/rs/zerolog/log"
 	b "github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/bean"
+	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
 )
 
@@ -46,11 +47,11 @@ type newBean func(fields []string, rows [][]interface{}) interface{}
 type Read struct {
 	dbMetadata *database.DbMetadata
 	batcher    b.MqBatcher[b.MessageArguments]
-	conf       Connection
+	conf       conf.Connection
 	alias      string
 }
 
-func NewRead(batcher b.MqBatcher[b.MessageArguments], conf Connection, schemas map[string][]string, alias string) (*Read, error) {
+func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, alias string) (*Read, error) {
 	dbMetadata, err := database.CreateMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
 		return nil, errors.New("connect to database failure")

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package component
+package configuration
 
 type Connection struct {
 	Host     string

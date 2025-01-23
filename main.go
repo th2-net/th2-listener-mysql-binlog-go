@@ -34,6 +34,8 @@ import (
 	"github.com/th2-net/th2-common-go/pkg/modules/queue"
 	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component"
+	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
+	"github.com/th2-net/th2-read-mysql-binlog-go/component/read"
 )
 
 const (
@@ -51,7 +53,7 @@ func main() {
 		log.Panic().Err(err).Msg("'NewRabbitMqModule' can't be registered")
 	}
 
-	var conf component.Configuration
+	var conf conf.Configuration
 	if err := newFactory.GetCustomConfiguration(&conf); err != nil {
 		log.Panic().Err(err).Msg("Getting custom config failure")
 	}
@@ -114,7 +116,7 @@ func main() {
 	readinessMonitor.Enable()
 	defer readinessMonitor.Disable()
 
-	read, err := component.NewRead(batcher, conf.Connection, conf.Schemas, alias)
+	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, alias)
 	if err != nil {
 		log.Panic().Err(err).Msg("Read creation failure")
 	}
@@ -129,7 +131,7 @@ func main() {
 	log.Info().Msg("shutdown component")
 }
 
-func getStreamParameters(conf component.Configuration) (string, string, error) {
+func getStreamParameters(conf conf.Configuration) (string, string, error) {
 	alias := conf.Alias
 	if len(alias) == 0 {
 		return "", "", errors.New("alias can't be empty")
