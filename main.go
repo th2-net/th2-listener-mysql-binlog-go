@@ -128,7 +128,7 @@ func main() {
 	readinessMonitor.Enable()
 	defer readinessMonitor.Disable()
 
-	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, componentConf.Book, alias)
+	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias)
 	if err != nil {
 		logger.Panic().Err(err).Msg("Read creation failure")
 	}

@@ -59,10 +59,11 @@ type Read struct {
 	batcher    b.MqBatcher[b.MessageArguments]
 	conf       conf.Connection
 	book       string
+	group      string
 	alias      string
 }
 
-func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, alias string) (*Read, error) {
+func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, group string, alias string) (*Read, error) {
 	dbMetadata, err := database.LoadMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
 		return nil, fmt.Errorf("loading schema metadata ta failure: %w", err)
@@ -72,6 +73,7 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 		conf:       conf,
 		batcher:    batcher,
 		book:       book,
+		group:      group,
 		alias:      alias,
 	}, nil
 }
@@ -182,7 +184,7 @@ func (r *Read) Close() error {
 func (r *Read) loadPreviousState(lwdp *fetcher.LwdpFetcher) (string, uint32, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5_000)*time.Millisecond)
 	defer cancel()
-	msg, err := lwdp.GetLastGroupedMessage(ctx, r.book, r.alias, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format)
+	msg, err := lwdp.GetLastGroupedMessage(ctx, r.book, r.group, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format)
 	if err != nil {
 		return "", 0, err
 	}
