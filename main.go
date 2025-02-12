@@ -26,10 +26,11 @@ import (
 	"github.com/th2-net/th2-common-go/pkg/common"
 	"github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
 
-	"github.com/th2-net/th2-common-go/pkg/common/grpc/th2_grpc_common"
+	proto "github.com/th2-net/th2-grpc-common-go"
 
 	"github.com/rs/zerolog/log"
 	"github.com/th2-net/th2-common-go/pkg/factory"
+	"github.com/th2-net/th2-common-go/pkg/modules/grpc"
 	"github.com/th2-net/th2-common-go/pkg/modules/prometheus"
 	"github.com/th2-net/th2-common-go/pkg/modules/queue"
 	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
@@ -50,7 +51,10 @@ func main() {
 		}
 	}(newFactory)
 	if err := newFactory.Register(queue.NewRabbitMqModule); err != nil {
-		log.Panic().Err(err).Msg("'NewRabbitMqModule' can't be registered")
+		log.Panic().Err(err).Msg("'RabbitMq' module can't be registered")
+	}
+	if err := newFactory.Register(grpc.NewModule); err != nil {
+		log.Panic().Err(err).Msg("'gRPC' module can't be registered")
 	}
 
 	var conf conf.Configuration
@@ -62,20 +66,23 @@ func main() {
 		log.Panic().Err(err).Msg("Getting stream parameters from conf failure")
 	}
 
-	module, err := queue.ModuleID.GetModule(newFactory)
+	mqMod, err := queue.ModuleID.GetModule(newFactory)
 	if err != nil {
-		log.Panic().Err(err).Msg("Getting 'NewRabbitMqModule' failure")
+		log.Panic().Err(err).Msg("Getting 'RabbitMq' module failure")
+	}
+	grpcMod, err := grpc.ModuleID.GetModule(newFactory)
+	if err != nil {
+		log.Panic().Err(err).Msg("Getting 'gRPC' module failure")
 	}
 
-	// Create a root event TODO: use utils.CreateEventID(book, scope) method
 	componentConf := newFactory.GetBoxConfig()
 	rootEventID := utils.CreateEventID(componentConf.Book, componentConf.Name)
-	err = module.GetEventRouter().SendAll(utils.CreateEventBatch(nil,
-		&th2_grpc_common.Event{
+	err = mqMod.GetEventRouter().SendAll(utils.CreateEventBatch(nil,
+		&proto.Event{
 			Id:                 rootEventID,
 			ParentId:           nil,
 			EndTimestamp:       nil,
-			Status:             th2_grpc_common.EventStatus_SUCCESS,
+			Status:             proto.EventStatus_SUCCESS,
 			Name:               "Root Event",
 			Type:               "Message",
 			Body:               nil,
@@ -89,9 +96,9 @@ func main() {
 		Str("component", "read_mysql_binlog_main").
 		Msg("Created root report event for read-mysql-binlog")
 
-	batcher, err := batcher.NewMessageBatcher(module.GetMessageRouter(), batcher.MqMessageBatcherConfig{
+	batcher, err := batcher.NewMessageBatcher(mqMod.GetMessageRouter(), batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
-			Book: rootEventID.BookName,
+			Book: componentConf.Book,
 		},
 		Group:    group,
 		Protocol: PROTOCOL,
@@ -116,15 +123,17 @@ func main() {
 	readinessMonitor.Enable()
 	defer readinessMonitor.Disable()
 
-	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, alias)
+	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, componentConf.Book, alias)
 	if err != nil {
 		log.Panic().Err(err).Msg("Read creation failure")
 	}
 
+	router := grpcMod.GetRouter()
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	if err := read.Read(ctx); err != nil {
+	if err := read.Read(router, ctx); err != nil {
 		log.Panic().Err(err).Msg("Reading binlog events failure")
 	}
 

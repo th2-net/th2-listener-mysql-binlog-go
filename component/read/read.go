@@ -21,12 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 	"github.com/rs/zerolog/log"
+	"github.com/th2-net/th2-common-go/pkg/grpc"
 	b "github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
+	proto "github.com/th2-net/th2-grpc-common-go"
+	"github.com/th2-net/th2-lwdp-grpc-fetcher-go/pkg/fetcher"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/bean"
 	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
@@ -49,10 +53,11 @@ type Read struct {
 	dbMetadata database.DbMetadata
 	batcher    b.MqBatcher[b.MessageArguments]
 	conf       conf.Connection
+	book       string
 	alias      string
 }
 
-func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, alias string) (*Read, error) {
+func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, alias string) (*Read, error) {
 	dbMetadata, err := database.LoadMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
 		return nil, fmt.Errorf("loading schema metadata ta failure: %w", err)
@@ -61,11 +66,17 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 		dbMetadata: *dbMetadata,
 		conf:       conf,
 		batcher:    batcher,
+		book:       book,
 		alias:      alias,
 	}, nil
 }
 
-func (r *Read) Read(ctx context.Context) error {
+func (r *Read) Read(router grpc.Router, ctx context.Context) error {
+	filename, pos, err := r.loadPreviousState(router)
+	if err != nil {
+		return fmt.Errorf("getting the last grouped message failure: %w", err)
+	}
+
 	cfg := replication.BinlogSyncerConfig{
 		ServerID: 100,
 		Flavor:   "mysql",
@@ -75,7 +86,7 @@ func (r *Read) Read(ctx context.Context) error {
 		Password: r.conf.Password,
 	}
 	syncer := replication.NewBinlogSyncer(cfg)
-	streamer, err := syncer.StartSync(mysql.Position{Name: "", Pos: uint32(0)})
+	streamer, err := syncer.StartSync(mysql.Position{Name: filename, Pos: pos})
 	if err != nil {
 		return fmt.Errorf("starting sync binlog failure: %w", err)
 	}
@@ -146,6 +157,35 @@ func (r *Read) Read(ctx context.Context) error {
 
 func (r *Read) Close() error {
 	return nil
+}
+
+func (r *Read) loadPreviousState(router grpc.Router) (string, uint32, error) {
+	msg, err := fetcher.GetLastGroupedMessage(router, r.book, r.alias, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format, 5_000)
+	if err != nil {
+		return "", 0, err
+	}
+	if msg == nil {
+		log.Info().Str("book", r.book).Str("alias", r.alias).Msg("no previous messages")
+		return "", 0, nil
+	}
+
+	logName, ok := msg.MessageProperties[logNameProp]
+	if !ok {
+		log.Warn().Any("message-id", msg.MessageId).Any("properties", msg.MessageProperties).Str("target", logNameProp).Msg("required property isn't found")
+		return "", 0, nil
+	}
+	logPos, ok := msg.MessageProperties[logPosProp]
+	if !ok {
+		log.Warn().Any("message-id", msg.MessageId).Any("properties", msg.MessageProperties).Str("target", logPosProp).Msg("required property isn't found")
+		return "", 0, nil
+	}
+	num, err := strconv.ParseUint(logPos, 10, 32)
+	if err != nil {
+		log.Warn().Any("message-id", msg.MessageId).Str("target", logPosProp).Str("value", logPos).Err(err).Msg("log position has incorrect format")
+		return logName, 0, nil
+	}
+	log.Info().Any("message-id", msg.MessageId).Str("log-name", logName).Uint64("log-pos", num).Msg("loaded previous state")
+	return logName, uint32(num), nil
 }
 
 func (r *Read) processEvent(event *replication.BinlogEvent, logName string, logSeqNum int64, logTimestamp time.Time, createBean newBean) error {
