@@ -4,10 +4,10 @@ go 1.23.0
 
 require (
 	github.com/th2-net/th2-common-go v0.3.0
-	github.com/th2-net/th2-common-mq-batcher-go v0.0.0-20250212104224-a3c464434223
+	github.com/th2-net/th2-common-mq-batcher-go v0.0.1
 	github.com/th2-net/th2-common-utils-go v0.2.0
 	github.com/th2-net/th2-grpc-common-go v0.0.1
-	github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250212110515-547d9d9e0e4d
+	github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250212143722-376f7b6d2df9
 )
 
 require (
@@ -24,7 +24,7 @@ require (
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726 // indirect
 	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07 // indirect
 	github.com/th2-net/th2-grpc-lw-data-provider-go v0.0.1 // indirect
-	github.com/th2-net/transport-go v0.0.2-0.20250121104533-0892039bb84b // indirect
+	github.com/th2-net/transport-go v0.0.2 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect

@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -78,11 +77,8 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 	}, nil
 }
 
-func (r *Read) Read(lwdp *fetcher.LwdpFetcher, ctx context.Context) error {
-	if lwdp == nil {
-		return errors.New("'lwdp' fetcher can't be nil")
-	}
-	filename, pos, err := r.loadPreviousState(lwdp)
+func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
+	filename, pos, err := r.loadPreviousState(ctx, lwdp)
 	if err != nil {
 		return fmt.Errorf("getting the last grouped message failure: %w", err)
 	}
@@ -181,8 +177,8 @@ func (r *Read) Close() error {
 	return nil
 }
 
-func (r *Read) loadPreviousState(lwdp *fetcher.LwdpFetcher) (string, uint32, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(1)*time.Minute)
+func (r *Read) loadPreviousState(ctx context.Context, lwdp fetcher.LwdpFetcher) (string, uint32, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(1)*time.Minute)
 	defer cancel()
 	msg, err := lwdp.GetLastGroupedMessage(ctx, r.book, r.group, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format)
 	if err != nil {

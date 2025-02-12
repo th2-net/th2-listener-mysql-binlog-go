@@ -134,14 +134,14 @@ func main() {
 	}
 
 	lwdp, err := fetcher.NewLwdpFetcher(grpcMod.GetRouter())
-	if err != nil || lwdp == nil {
+	if err != nil {
 		logger.Panic().Err(err).Msg("Creating lwdp fetcher failure")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	if err := read.Read(lwdp, ctx); err != nil {
+	if err := read.Read(ctx, lwdp); err != nil {
 		logger.Panic().Err(err).Msg("Reading binlog events failure")
 	}
 
