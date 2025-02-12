@@ -4,10 +4,10 @@ go 1.23.0
 
 require (
 	github.com/th2-net/th2-common-go v0.3.0
-	github.com/th2-net/th2-common-mq-batcher-go v0.0.0-20250212073323-650f6492a71e
+	github.com/th2-net/th2-common-mq-batcher-go v0.0.0-20250212104224-a3c464434223
 	github.com/th2-net/th2-common-utils-go v0.2.0
 	github.com/th2-net/th2-grpc-common-go v0.0.1
-	github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250212071229-4f793f81d685
+	github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250212110515-547d9d9e0e4d
 )
 
 require (

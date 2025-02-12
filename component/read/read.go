@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
-	"github.com/th2-net/th2-common-go/pkg/grpc"
 	"github.com/th2-net/th2-common-go/pkg/log"
 	b "github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
 	proto "github.com/th2-net/th2-grpc-common-go"
@@ -76,8 +76,11 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 	}, nil
 }
 
-func (r *Read) Read(router grpc.Router, ctx context.Context) error {
-	filename, pos, err := r.loadPreviousState(router)
+func (r *Read) Read(lwdp *fetcher.LwdpFetcher, ctx context.Context) error {
+	if lwdp == nil {
+		return errors.New("'lwdp' fetcher can't be nil")
+	}
+	filename, pos, err := r.loadPreviousState(lwdp)
 	if err != nil {
 		return fmt.Errorf("getting the last grouped message failure: %w", err)
 	}
@@ -176,8 +179,10 @@ func (r *Read) Close() error {
 	return nil
 }
 
-func (r *Read) loadPreviousState(router grpc.Router) (string, uint32, error) {
-	msg, err := fetcher.GetLastGroupedMessage(router, r.book, r.alias, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format, 5_000)
+func (r *Read) loadPreviousState(lwdp *fetcher.LwdpFetcher) (string, uint32, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5_000)*time.Millisecond)
+	defer cancel()
+	msg, err := lwdp.GetLastGroupedMessage(ctx, r.book, r.alias, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format)
 	if err != nil {
 		return "", 0, err
 	}

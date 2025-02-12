@@ -25,6 +25,7 @@ import (
 
 	"github.com/th2-net/th2-common-go/pkg/common"
 	"github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
+	"github.com/th2-net/th2-lwdp-grpc-fetcher-go/pkg/fetcher"
 
 	proto "github.com/th2-net/th2-grpc-common-go"
 
@@ -132,12 +133,15 @@ func main() {
 		logger.Panic().Err(err).Msg("Read creation failure")
 	}
 
-	router := grpcMod.GetRouter()
+	lwdp, err := fetcher.NewLwdpFetcher(grpcMod.GetRouter())
+	if err != nil || lwdp == nil {
+		logger.Panic().Err(err).Msg("Creating lwdp fetcher failure")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	if err := read.Read(router, ctx); err != nil {
+	if err := read.Read(lwdp, ctx); err != nil {
 		logger.Panic().Err(err).Msg("Reading binlog events failure")
 	}
 
