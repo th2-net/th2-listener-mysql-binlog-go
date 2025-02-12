@@ -63,7 +63,7 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 		return nil, fmt.Errorf("loading schema metadata ta failure: %w", err)
 	}
 	return &Read{
-		dbMetadata: *dbMetadata,
+		dbMetadata: dbMetadata,
 		conf:       conf,
 		batcher:    batcher,
 		book:       book,

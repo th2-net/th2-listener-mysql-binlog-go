@@ -32,7 +32,7 @@ type SchemaMetadata map[string]TableMetadata
 
 type DbMetadata map[string]SchemaMetadata
 
-func LoadMetadata(host string, port uint16, username string, password string, schemas conf.SchemasConf) (*DbMetadata, error) {
+func LoadMetadata(host string, port uint16, username string, password string, schemas conf.SchemasConf) (DbMetadata, error) {
 	if len(schemas) == 0 {
 		return nil, errors.New("no one schema isn't configured for loading db metadata")
 	}
@@ -63,7 +63,7 @@ func LoadMetadata(host string, port uint16, username string, password string, sc
 		dbMetadata[schema] = schemaMetadata
 	}
 
-	return &dbMetadata, nil
+	return dbMetadata, nil
 }
 
 func (metadata DbMetadata) GetFields(schema string, table string) []string {
