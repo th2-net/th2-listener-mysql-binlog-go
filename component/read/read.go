@@ -37,17 +37,15 @@ import (
 )
 
 const (
-	logNameProp        = "name"
-	logPosProp         = "pos"
-	logSeqNumProp      = "seq"
-	logTimestampProp   = "timestamp"
-	logEventSchemaProp = "schema"
-	logEventTableProp  = "table"
+	logNameProp      = "name"
+	logPosProp       = "pos"
+	logSeqNumProp    = "seq"
+	logTimestampProp = "timestamp"
 
 	msgProtocol = "json"
 )
 
-type newBean func(fields []string, rows [][]interface{}) interface{}
+type newBean func(schema string, table string, fields []string, rows [][]interface{}) interface{}
 
 type Read struct {
 	dbMetadata database.DbMetadata
@@ -101,14 +99,14 @@ func (r *Read) Read(router grpc.Router, ctx context.Context) error {
 	var logSeqNum int64
 	var logTimestamp time.Time
 
-	newInsert := func(fields []string, rows [][]interface{}) interface{} {
-		return bean.NewInsert(fields, rows)
+	newInsert := func(schema string, table string, fields []string, rows [][]interface{}) interface{} {
+		return bean.NewInsert(schema, table, fields, rows)
 	}
-	newUpdate := func(fields []string, rows [][]interface{}) interface{} {
-		return bean.NewUpdate(fields, rows)
+	newUpdate := func(schema string, table string, fields []string, rows [][]interface{}) interface{} {
+		return bean.NewUpdate(schema, table, fields, rows)
 	}
-	newDelete := func(fields []string, rows [][]interface{}) interface{} {
-		return bean.NewDelete(fields, rows)
+	newDelete := func(schema string, table string, fields []string, rows [][]interface{}) interface{} {
+		return bean.NewDelete(schema, table, fields, rows)
 	}
 
 	for {
@@ -197,7 +195,7 @@ func (r *Read) processEvent(event *replication.BinlogEvent, logName string, logS
 		log.Trace().Str("schema", schema).Str("table", table).Msg("Event skipped")
 		return nil
 	}
-	bean := createBean(fields, rowsEvent.Rows)
+	bean := createBean(schema, table, fields, rowsEvent.Rows)
 	metadata := createMetadata(schema, table, logName, event.Header.LogPos, logSeqNum, logTimestamp)
 	if err := r.batchMessage(bean, r.alias, metadata); err != nil {
 		return fmt.Errorf("batching event failure: %w", err)
@@ -232,11 +230,9 @@ func logEvent(event *replication.BinlogEvent) {
 
 func createMetadata(schema string, table string, logName string, logPos uint32, logSeqNum int64, logTimestamp time.Time) map[string]string {
 	return map[string]string{
-		logNameProp:        logName,
-		logPosProp:         fmt.Sprint(logPos),
-		logSeqNumProp:      fmt.Sprint(logSeqNum),
-		logTimestampProp:   fmt.Sprint(logTimestamp.UnixNano()),
-		logEventSchemaProp: schema,
-		logEventTableProp:  table,
+		logNameProp:      logName,
+		logPosProp:       fmt.Sprint(logPos),
+		logSeqNumProp:    fmt.Sprint(logSeqNum),
+		logTimestampProp: fmt.Sprint(logTimestamp.UnixNano()),
 	}
 }

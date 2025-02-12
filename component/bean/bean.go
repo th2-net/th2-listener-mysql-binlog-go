@@ -28,8 +28,14 @@ const (
 
 type Values map[string]interface{}
 
-type Insert struct {
+type Record struct {
+	Schema string
+	Table string
 	Operation string
+}
+
+type Insert struct {
+	Record
 	Inserted  []Values
 }
 
@@ -39,25 +45,25 @@ type UpdatePair struct {
 }
 
 type Update struct {
-	Operation string
+	Record
 	Updated   []UpdatePair
 }
 
 type Delete struct {
-	Operation string
+	Record
 	Deleted   []Values
 }
 
-func NewInsert(fields []string, rows [][]interface{}) Insert {
-	return Insert{Operation: insertOperation, Inserted: createValues(fields, rows)}
+func NewInsert(schema string, table string, fields []string, rows [][]interface{}) Insert {
+	return Insert{Record: Record{Schema: schema, Table: table, Operation: insertOperation}, Inserted: createValues(fields, rows)}
 }
 
-func NewUpdate(fields []string, rows [][]interface{}) Update {
-	return Update{Operation: updateOperation, Updated: createUpdatePairs(fields, rows)}
+func NewUpdate(schema string, table string, fields []string, rows [][]interface{}) Update {
+	return Update{Record: Record{Schema: schema, Table: table, Operation: updateOperation}, Updated: createUpdatePairs(fields, rows)}
 }
 
-func NewDelete(fields []string, rows [][]interface{}) Delete {
-	return Delete{Operation: deleteOperation, Deleted: createValues(fields, rows)}
+func NewDelete(schema string, table string, fields []string, rows [][]interface{}) Delete {
+	return Delete{Record: Record{Schema: schema, Table: table, Operation: deleteOperation}, Deleted: createValues(fields, rows)}
 }
 
 func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) []Values {
