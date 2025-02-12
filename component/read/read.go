@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
@@ -43,6 +44,8 @@ const (
 	logTimestampProp = "timestamp"
 
 	msgProtocol = "json"
+
+	replicationPositionErr = "ERROR 1236 (HY000): Client requested source to start replication from position > file size"
 )
 
 type newBean func(schema string, table string, fields []string, rows [][]interface{}) interface{}
@@ -74,7 +77,19 @@ func (r *Read) Read(router grpc.Router, ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("getting the last grouped message failure: %w", err)
 	}
+	err = r.read(ctx, filename, pos)
+	if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
+		log.Warn().Err(err).Str("filename", filename).Uint32("position", pos).Msg("Replication position incorrect, trying to use filename only")
+		err = r.read(ctx, filename, 0)
+		if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
+			log.Warn().Err(err).Str("filename", filename).Uint32("position", 0).Msg("Replication position incorrect, trying to use empty position")
+			return r.read(ctx, "", 0)
+		}
+	}
+	return err
+}
 
+func (r *Read) read(ctx context.Context, filename string, pos uint32) error {
 	cfg := replication.BinlogSyncerConfig{
 		ServerID: 100,
 		Flavor:   "mysql",
