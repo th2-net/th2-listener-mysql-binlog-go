@@ -66,6 +66,31 @@ Each body contains the fields:
 * `Table` - SQL table name
 * `Operation` - SQL operation name
 
+#### test schema
+```
+CREATE TABLE IF NOT EXISTS test.type_test (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    int_col INT,
+    tinyint_col TINYINT,
+    smallint_col SMALLINT,
+    mediumint_col MEDIUMINT,
+    bigint_col BIGINT,
+    decimal_col DECIMAL(10,2),
+    float_col FLOAT,
+    double_col DOUBLE,
+    char_col CHAR(10),
+    varchar_col VARCHAR(50),
+    text_col TEXT,
+    blob_col BLOB,
+    date_col DATE,
+    datetime_col DATETIME,
+    timestamp_col TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    time_col TIME,
+    year_col YEAR,
+    json_col JSON
+);
+```
+
 #### insert message
 
 This message contains the field:
@@ -74,15 +99,30 @@ This message contains the field:
 Example:
 ```json
 {
-  "Schema": "mydb",
-  "Table": "mytable",
+  "Schema": "test",
+  "Table": "type_test",
   "Operation": "INSERT",
   "Inserted": [
     {
-      "age": 30,
-      "created_at": "2025-02-12 08:50:47",
+      "bigint_col": 9223372036854775807,
+      "blob_col": "U2FtcGxlIEJMT0IgZGF0YQ==",
+      "char_col": "A",
+      "date_col": "2024-02-12",
+      "datetime_col": "2024-02-12 14:30:00",
+      "decimal_col": "12345.67",
+      "double_col": 2.71828,
+      "float_col": 3.14,
       "id": 1,
-      "name": "John Doe"
+      "int_col": 100,
+      "json_col": "{\"key\":\"value\"}",
+      "mediumint_col": 500000,
+      "smallint_col": 32000,
+      "text_col": "U2FtcGxlIHRleHQgZGF0YQ==",
+      "time_col": "14:30:00",
+      "timestamp_col": "2025-02-12 13:10:37",
+      "tinyint_col": 1,
+      "varchar_col": "create-update-delete-test",
+      "year_col": 2024
     }
   ]
 }
@@ -91,27 +131,59 @@ Example:
 #### update message
 
 This message contains the field:
-* `Deleted` - list of dictionaries with column value pairs of deleted record
+* `Updated` - list of dictionaries contained two fields:
+    * `Before` - dictionary with column value pairs of record before update
+    * `After` - dictionary with column value pairs of record after update
 
 Example:
 ```json
 {
-  "Schema": "mydb",
-  "Table": "mytable",
+  "Schema": "test",
+  "Table": "type_test",
   "Operation": "UPDATE",
   "Updated": [
     {
       "Before": {
-        "age": 30,
-        "created_at": "2025-02-12 08:50:47",
+        "bigint_col": 9223372036854775807,
+        "blob_col": "U2FtcGxlIEJMT0IgZGF0YQ==",
+        "char_col": "A",
+        "date_col": "2024-02-12",
+        "datetime_col": "2024-02-12 14:30:00",
+        "decimal_col": "12345.67",
+        "double_col": 2.71828,
+        "float_col": 3.14,
         "id": 1,
-        "name": "John Doe"
+        "int_col": 100,
+        "json_col": "{\"key\":\"value\"}",
+        "mediumint_col": 500000,
+        "smallint_col": 32000,
+        "text_col": "U2FtcGxlIHRleHQgZGF0YQ==",
+        "time_col": "14:30:00",
+        "timestamp_col": "2025-02-12 13:10:37",
+        "tinyint_col": 1,
+        "varchar_col": "create-update-delete-test",
+        "year_col": 2024
       },
       "After": {
-        "age": 35,
-        "created_at": "2025-02-12 08:50:47",
+        "bigint_col": 9000000000000000000,
+        "blob_col": "VXBkYXRlZCBCTE9CIGRhdGE=",
+        "char_col": "B",
+        "date_col": "2025-02-12",
+        "datetime_col": "2025-02-12 16:00:00",
+        "decimal_col": "98765.43",
+        "double_col": 5.43656,
+        "float_col": 6.28,
         "id": 1,
-        "name": "John Doe"
+        "int_col": 200,
+        "json_col": "{\"new_key\":\"new_value\"}",
+        "mediumint_col": 400000,
+        "smallint_col": 31000,
+        "text_col": "VXBkYXRlZCB0ZXh0IGRhdGE=",
+        "time_col": "16:00:00",
+        "timestamp_col": "2025-02-12 13:10:37",
+        "tinyint_col": 2,
+        "varchar_col": "Updated create-update-delete-test",
+        "year_col": 2025
       }
     }
   ]
@@ -126,15 +198,30 @@ This message contains the field:
 Example:
 ```json
 {
-  "Schema": "mydb",
-  "Table": "mytable",
+  "Schema": "test",
+  "Table": "type_test",
   "Operation": "DELETE",
   "Deleted": [
     {
-      "age": 35,
-      "created_at": "2025-02-12 08:50:47",
+      "bigint_col": 9000000000000000000,
+      "blob_col": "VXBkYXRlZCBCTE9CIGRhdGE=",
+      "char_col": "B",
+      "date_col": "2025-02-12",
+      "datetime_col": "2025-02-12 16:00:00",
+      "decimal_col": "98765.43",
+      "double_col": 5.43656,
+      "float_col": 6.28,
       "id": 1,
-      "name": "John Doe"
+      "int_col": 200,
+      "json_col": "{\"new_key\":\"new_value\"}",
+      "mediumint_col": 400000,
+      "smallint_col": 31000,
+      "text_col": "VXBkYXRlZCB0ZXh0IGRhdGE=",
+      "time_col": "16:00:00",
+      "timestamp_col": "2025-02-12 13:10:37",
+      "tinyint_col": 2,
+      "varchar_col": "Updated create-update-delete-test",
+      "year_col": 2025
     }
   ]
 }
