@@ -22,8 +22,12 @@ import (
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/rs/zerolog/log"
+	"github.com/th2-net/th2-common-go/pkg/log"
 	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
+)
+
+var (
+	logger = log.ForComponent("db-meta-data")
 )
 
 type TableMetadata []string
@@ -43,7 +47,7 @@ func LoadMetadata(host string, port uint16, username string, password string, sc
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			log.Warn().Msg("Metadata db connection closed ungracefully")
+			logger.Warn().Msg("Metadata db connection closed ungracefully")
 		}
 	}()
 
@@ -108,7 +112,7 @@ func loadFields(db *sql.DB, schema string, table string) ([]string, error) {
 		return nil, fmt.Errorf("loaded field names for %s.%s table failure", schema, table)
 	}
 
-	log.Info().Strs("fields", fields).Msgf("Loaded field names for %s.%s table", schema, table)
+	logger.Info().Strs("fields", fields).Msgf("Loaded field names for %s.%s table", schema, table)
 
 	return fields, nil
 }

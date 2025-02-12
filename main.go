@@ -28,8 +28,8 @@ import (
 
 	proto "github.com/th2-net/th2-grpc-common-go"
 
-	"github.com/rs/zerolog/log"
 	"github.com/th2-net/th2-common-go/pkg/factory"
+	"github.com/th2-net/th2-common-go/pkg/log"
 	"github.com/th2-net/th2-common-go/pkg/modules/grpc"
 	"github.com/th2-net/th2-common-go/pkg/modules/prometheus"
 	"github.com/th2-net/th2-common-go/pkg/modules/queue"
@@ -43,36 +43,40 @@ const (
 	PROTOCOL string = "json"
 )
 
+var (
+	logger = log.ForComponent("main")
+)
+
 func main() {
 	newFactory := factory.New()
 	defer func(newFactory common.Factory) {
 		if err := newFactory.Close(); err != nil {
-			log.Error().Err(err).Msg("cannot close factory")
+			logger.Error().Err(err).Msg("cannot close factory")
 		}
 	}(newFactory)
 	if err := newFactory.Register(queue.NewRabbitMqModule); err != nil {
-		log.Panic().Err(err).Msg("'RabbitMq' module can't be registered")
+		logger.Panic().Err(err).Msg("'RabbitMq' module can't be registered")
 	}
 	if err := newFactory.Register(grpc.NewModule); err != nil {
-		log.Panic().Err(err).Msg("'gRPC' module can't be registered")
+		logger.Panic().Err(err).Msg("'gRPC' module can't be registered")
 	}
 
 	var conf conf.Configuration
 	if err := newFactory.GetCustomConfiguration(&conf); err != nil {
-		log.Panic().Err(err).Msg("Getting custom config failure")
+		logger.Panic().Err(err).Msg("Getting custom config failure")
 	}
 	group, alias, err := getStreamParameters(conf)
 	if err != nil {
-		log.Panic().Err(err).Msg("Getting stream parameters from conf failure")
+		logger.Panic().Err(err).Msg("Getting stream parameters from conf failure")
 	}
 
 	mqMod, err := queue.ModuleID.GetModule(newFactory)
 	if err != nil {
-		log.Panic().Err(err).Msg("Getting 'RabbitMq' module failure")
+		logger.Panic().Err(err).Msg("Getting 'RabbitMq' module failure")
 	}
 	grpcMod, err := grpc.ModuleID.GetModule(newFactory)
 	if err != nil {
-		log.Panic().Err(err).Msg("Getting 'gRPC' module failure")
+		logger.Panic().Err(err).Msg("Getting 'gRPC' module failure")
 	}
 
 	componentConf := newFactory.GetBoxConfig()
@@ -90,9 +94,9 @@ func main() {
 		},
 	))
 	if err != nil {
-		log.Panic().Err(err).Msg("Sending root event failure")
+		logger.Panic().Err(err).Msg("Sending root event failure")
 	}
-	log.Info().
+	logger.Info().
 		Str("component", "read_mysql_binlog_main").
 		Msg("Created root report event for read-mysql-binlog")
 
@@ -104,17 +108,17 @@ func main() {
 		Protocol: PROTOCOL,
 	})
 	if err != nil {
-		log.Panic().Err(err).Msg("Creating message batcher failure")
+		logger.Panic().Err(err).Msg("Creating message batcher failure")
 	}
 	defer func(closer io.Closer) {
 		if err := closer.Close(); err != nil {
-			log.Error().Err(err).Msg("cannot close message batcher")
+			logger.Error().Err(err).Msg("cannot close message batcher")
 		}
 	}(batcher)
 
 	promMod, err := prometheus.ModuleID.GetModule(newFactory)
 	if err != nil {
-		log.Panic().Err(err).Msg("Getting 'PrometheusModule' failure")
+		logger.Panic().Err(err).Msg("Getting 'PrometheusModule' failure")
 	}
 	livenessMonitor := promMod.GetLivenessArbiter().RegisterMonitor("liveness_monitor")
 	readinessMonitor := promMod.GetReadinessArbiter().RegisterMonitor("readiness_monitor")
@@ -125,7 +129,7 @@ func main() {
 
 	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, componentConf.Book, alias)
 	if err != nil {
-		log.Panic().Err(err).Msg("Read creation failure")
+		logger.Panic().Err(err).Msg("Read creation failure")
 	}
 
 	router := grpcMod.GetRouter()
@@ -134,10 +138,10 @@ func main() {
 	defer stop()
 
 	if err := read.Read(router, ctx); err != nil {
-		log.Panic().Err(err).Msg("Reading binlog events failure")
+		logger.Panic().Err(err).Msg("Reading binlog events failure")
 	}
 
-	log.Info().Msg("shutdown component")
+	logger.Info().Msg("shutdown component")
 }
 
 func getStreamParameters(conf conf.Configuration) (string, string, error) {

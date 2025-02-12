@@ -27,8 +27,8 @@ import (
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
-	"github.com/rs/zerolog/log"
 	"github.com/th2-net/th2-common-go/pkg/grpc"
+	"github.com/th2-net/th2-common-go/pkg/log"
 	b "github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
 	proto "github.com/th2-net/th2-grpc-common-go"
 	"github.com/th2-net/th2-lwdp-grpc-fetcher-go/pkg/fetcher"
@@ -46,6 +46,10 @@ const (
 	msgProtocol = "json"
 
 	replicationPositionErr = "ERROR 1236 (HY000): Client requested source to start replication from position > file size"
+)
+
+var (
+	logger = log.ForComponent("read")
 )
 
 type newBean func(schema string, table string, fields []string, rows [][]interface{}) interface{}
@@ -79,10 +83,10 @@ func (r *Read) Read(router grpc.Router, ctx context.Context) error {
 	}
 	err = r.read(ctx, filename, pos)
 	if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
-		log.Warn().Err(err).Str("filename", filename).Uint32("position", pos).Msg("Replication position incorrect, trying to use filename only")
+		logger.Warn().Err(err).Str("filename", filename).Uint32("position", pos).Msg("Replication position incorrect, trying to use filename only")
 		err = r.read(ctx, filename, 0)
 		if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
-			log.Warn().Err(err).Str("filename", filename).Uint32("position", 0).Msg("Replication position incorrect, trying to use empty position")
+			logger.Warn().Err(err).Str("filename", filename).Uint32("position", 0).Msg("Replication position incorrect, trying to use empty position")
 			return r.read(ctx, "", 0)
 		}
 	}
@@ -178,26 +182,26 @@ func (r *Read) loadPreviousState(router grpc.Router) (string, uint32, error) {
 		return "", 0, err
 	}
 	if msg == nil {
-		log.Info().Str("book", r.book).Str("alias", r.alias).Msg("no previous messages")
+		logger.Info().Str("book", r.book).Str("alias", r.alias).Msg("no previous messages")
 		return "", 0, nil
 	}
 
 	logName, ok := msg.MessageProperties[logNameProp]
 	if !ok {
-		log.Warn().Any("message-id", msg.MessageId).Any("properties", msg.MessageProperties).Str("target", logNameProp).Msg("required property isn't found")
+		logger.Warn().Any("message-id", msg.MessageId).Any("properties", msg.MessageProperties).Str("target", logNameProp).Msg("required property isn't found")
 		return "", 0, nil
 	}
 	logPos, ok := msg.MessageProperties[logPosProp]
 	if !ok {
-		log.Warn().Any("message-id", msg.MessageId).Any("properties", msg.MessageProperties).Str("target", logPosProp).Msg("required property isn't found")
+		logger.Warn().Any("message-id", msg.MessageId).Any("properties", msg.MessageProperties).Str("target", logPosProp).Msg("required property isn't found")
 		return "", 0, nil
 	}
 	num, err := strconv.ParseUint(logPos, 10, 32)
 	if err != nil {
-		log.Warn().Any("message-id", msg.MessageId).Str("target", logPosProp).Str("value", logPos).Err(err).Msg("log position has incorrect format")
+		logger.Warn().Any("message-id", msg.MessageId).Str("target", logPosProp).Str("value", logPos).Err(err).Msg("log position has incorrect format")
 		return logName, 0, nil
 	}
-	log.Info().Any("message-id", msg.MessageId).Str("log-name", logName).Uint64("log-pos", num).Msg("loaded previous state")
+	logger.Info().Any("message-id", msg.MessageId).Str("log-name", logName).Uint64("log-pos", num).Msg("loaded previous state")
 	return logName, uint32(num), nil
 }
 
@@ -207,7 +211,7 @@ func (r *Read) processEvent(event *replication.BinlogEvent, logName string, logS
 	table := string(rowsEvent.Table.Table)
 	fields := r.dbMetadata.GetFields(schema, table)
 	if len(fields) == 0 {
-		log.Trace().Str("schema", schema).Str("table", table).Msg("Event skipped")
+		logger.Trace().Str("schema", schema).Str("table", table).Msg("Event skipped")
 		return nil
 	}
 	bean := createBean(schema, table, fields, rowsEvent.Rows)
@@ -231,15 +235,15 @@ func (r *Read) batchMessage(bean any, alias string, metadata map[string]string) 
 	}); err != nil {
 		return fmt.Errorf("batching failure: %w", err)
 	}
-	log.Trace().Msg("Message is sent to batcher")
+	logger.Trace().Msg("Message is sent to batcher")
 	return nil
 }
 
 func logEvent(event *replication.BinlogEvent) {
-	if log.Debug().Enabled() {
+	if logger.Debug().Enabled() {
 		buf := new(bytes.Buffer)
 		event.Dump(buf)
-		log.Debug().Str("event", buf.String()).Msg("read event")
+		logger.Debug().Str("event", buf.String()).Msg("read event")
 	}
 }
 

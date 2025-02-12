@@ -3,8 +3,7 @@ module github.com/th2-net/th2-read-mysql-binlog-go
 go 1.23.0
 
 require (
-	github.com/rs/zerolog v1.33.0
-	github.com/th2-net/th2-common-go v0.2.2-0.20250211155721-876fd59417bc
+	github.com/th2-net/th2-common-go v0.3.0
 	github.com/th2-net/th2-common-mq-batcher-go v0.0.0-20250212073323-650f6492a71e
 	github.com/th2-net/th2-common-utils-go v0.2.0
 	github.com/th2-net/th2-grpc-common-go v0.0.1
@@ -20,6 +19,7 @@ require (
 	github.com/pingcap/log v1.1.1-0.20230317032135-a0d097d16e22 // indirect
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20241118164214-4f047be191be // indirect
 	github.com/rabbitmq/amqp091-go v1.9.0 // indirect
+	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726 // indirect
 	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07 // indirect
