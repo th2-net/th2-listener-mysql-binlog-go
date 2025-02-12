@@ -182,7 +182,7 @@ func (r *Read) Close() error {
 }
 
 func (r *Read) loadPreviousState(lwdp *fetcher.LwdpFetcher) (string, uint32, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5_000)*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(1)*time.Minute)
 	defer cancel()
 	msg, err := lwdp.GetLastGroupedMessage(ctx, r.book, r.group, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format)
 	if err != nil {
