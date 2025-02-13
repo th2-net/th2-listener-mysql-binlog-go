@@ -20,10 +20,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
@@ -45,7 +43,10 @@ const (
 
 	msgProtocol = "json"
 
-	replicationPositionErr = "ERROR 1236 (HY000): Client requested source to start replication from position > file size"
+	// The 1236 error can occur due to incorrect or missing log files or positions in replication.
+	mysql1236              = 1236
+	mysqlIncorrectBinfile  = "Could not find first log file name in binary log index file"
+	mysqlIncorrectPosition = "Client requested source to start replication from position > file size"
 )
 
 var (
@@ -78,32 +79,32 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 	}, nil
 }
 
-func printWrappedErrors(err error) {
-	for err != nil {
-		if myErr, ok := err.(*mysql.MyError); ok {
-			fmt.Printf("MyError Msg: %+v\n", myErr)
-		}
-		fmt.Printf("Error: %T\n", err)
-		err = errors.Unwrap(err) // Get the next wrapped error
-	}
-}
-
 func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
 	filename, pos, err := r.loadPreviousState(ctx, lwdp)
 	if err != nil {
 		return fmt.Errorf("getting the last grouped message failure: %w", err)
 	}
 	err = r.read(ctx, filename, pos)
-	if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
-		printWrappedErrors(err)
-		logger.Warn().Err(err).Str("filename", filename).Uint32("position", pos).Msg("Replication position incorrect, trying to use filename only")
-		err = r.read(ctx, filename, 0)
-		if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
-			printWrappedErrors(err)
-			logger.Warn().Err(err).Str("filename", filename).Uint32("position", 0).Msg("Replication position incorrect, trying to use empty position")
-			return r.read(ctx, "", 0)
+	if myErr, ok := err.(*mysql.MyError); ok {
+		logger.Error().Err(err).Msg("Mysql error")
+		if myErr.Code == mysql1236 {
+			switch myErr.Message {
+			case mysqlIncorrectBinfile:
+				logger.Warn().Str("filename", filename).
+					Msg("Replication binfile incorrect, try to use empty parameters")
+				err = r.read(ctx, "", 0)
+			case mysqlIncorrectPosition:
+				logger.Warn().Str("filename", filename).Uint32("position", pos).
+					Msg("Replication binfile incorrect, try to use 0 position")
+				err = r.read(ctx, filename, 0)
+			default:
+				logger.Warn().Str("filename", filename).Uint32("position", pos).
+					Msg("Unknown mysql error message, try to use empty parameters")
+				err = r.read(ctx, "", 0)
+			}
 		}
 	}
+
 	return err
 }
 
