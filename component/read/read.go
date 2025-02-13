@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -77,6 +78,13 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 	}, nil
 }
 
+func printWrappedErrors(err error) {
+	for err != nil {
+		fmt.Printf("Error: %T\n", err)
+		err = errors.Unwrap(err) // Get the next wrapped error
+	}
+}
+
 func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
 	filename, pos, err := r.loadPreviousState(ctx, lwdp)
 	if err != nil {
@@ -84,9 +92,11 @@ func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
 	}
 	err = r.read(ctx, filename, pos)
 	if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
+		printWrappedErrors(err)
 		logger.Warn().Err(err).Str("filename", filename).Uint32("position", pos).Msg("Replication position incorrect, trying to use filename only")
 		err = r.read(ctx, filename, 0)
 		if err != nil && strings.Contains(err.Error(), replicationPositionErr) {
+			printWrappedErrors(err)
 			logger.Warn().Err(err).Str("filename", filename).Uint32("position", 0).Msg("Replication position incorrect, trying to use empty position")
 			return r.read(ctx, "", 0)
 		}

@@ -139,6 +139,8 @@ github.com/th2-net/th2-grpc-lw-data-provider-go v0.0.1 h1:7EMwvwYlHcoNxRxs7jZ47w
 github.com/th2-net/th2-grpc-lw-data-provider-go v0.0.1/go.mod h1:j7odg83lix/WzyJ+AKYbLrUL2FkuORb+9b3OtxUMbj0=
 github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250212143722-376f7b6d2df9 h1:RuafJexzbibLNPF82X0X5PXs71NQMyNcje0EbR6mHD4=
 github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250212143722-376f7b6d2df9/go.mod h1:EKr0rDVgTkfIrZ41Tkl0gnNSvhJf+KNcSpFpO4RqK7Y=
+github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250213065655-4bf4e9c12377 h1:sn3XGwHlTqgJPqq8fK1t66efmJMk7ZvQ79FW/iFyRns=
+github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250213065655-4bf4e9c12377/go.mod h1:EKr0rDVgTkfIrZ41Tkl0gnNSvhJf+KNcSpFpO4RqK7Y=
 github.com/th2-net/transport-go v0.0.2 h1:+GJMbJ2ah647UKsFETkMWiVdC00iu1WpeW/RtzHEpy4=
 github.com/th2-net/transport-go v0.0.2/go.mod h1:6dH4bSPeNaTFmOfsrfRvw/dae+Uuue3khtV5ltyqG+g=
 go.uber.org/atomic v1.6.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=
