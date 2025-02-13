@@ -80,6 +80,9 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 
 func printWrappedErrors(err error) {
 	for err != nil {
+		if myErr, ok := err.(*mysql.MyError); ok {
+			fmt.Printf("MyError Msg: %w\n", myErr)
+		}
 		fmt.Printf("Error: %T\n", err)
 		err = errors.Unwrap(err) // Get the next wrapped error
 	}
