@@ -19,6 +19,7 @@
 
 # VSCode
 .vscode/
+/README-*
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -32,3 +33,6 @@ go.work.sum
 
 th2-grpc/
 main
+
+# bin file
+/th2-read-mysql-binlog-go

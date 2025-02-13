@@ -1,4 +1,8 @@
 {
-    "messageType": "Batch",
-    "NBatches": 4
+    "connection": {
+        "host": "127.0.0.1",
+        "port": 3036,
+        "username": "guest",
+        "password": "guest"
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Exactpro (Exactpro Systems Limited)
+ * Copyright 2024-2025 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,20 @@
  * limitations under the License.
  */
 
-package component
+package configuration
+
+type Connection struct {
+	Host     string
+	Port     uint16
+	Username string
+	Password string
+}
+
+type SchemasConf = map[string][]string
 
 type Configuration struct {
-	MessageType string
-	NBatches    int
+	Connection Connection
+	Schemas    SchemasConf
+	Group      string
+	Alias      string
 }

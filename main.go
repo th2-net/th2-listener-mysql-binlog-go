@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2024-2025 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,60 +17,77 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"errors"
+	"io"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/th2-net/th2-common-go/pkg/common"
-	queueApi "github.com/th2-net/th2-common-go/pkg/queue"
+	"github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
+	"github.com/th2-net/th2-lwdp-grpc-fetcher-go/pkg/fetcher"
 
-	p_buff "th2-grpc/th2_grpc_common"
+	proto "github.com/th2-net/th2-grpc-common-go"
 
-	"github.com/rs/zerolog/log"
 	"github.com/th2-net/th2-common-go/pkg/factory"
+	"github.com/th2-net/th2-common-go/pkg/log"
+	"github.com/th2-net/th2-common-go/pkg/modules/grpc"
 	"github.com/th2-net/th2-common-go/pkg/modules/prometheus"
 	"github.com/th2-net/th2-common-go/pkg/modules/queue"
 	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
 	"github.com/th2-net/th2-read-mysql-binlog-go/component"
-	timestamp "google.golang.org/protobuf/types/known/timestamppb"
+	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
+	"github.com/th2-net/th2-read-mysql-binlog-go/component/read"
+)
+
+const (
+	PROTOCOL string = "json"
+)
+
+var (
+	logger = log.ForComponent("main")
 )
 
 func main() {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
 	newFactory := factory.New()
 	defer func(newFactory common.Factory) {
-		err := newFactory.Close()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot close factory")
+		if err := newFactory.Close(); err != nil {
+			logger.Error().Err(err).Msg("cannot close factory")
 		}
 	}(newFactory)
 	if err := newFactory.Register(queue.NewRabbitMqModule); err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("'RabbitMq' module can't be registered")
+	}
+	if err := newFactory.Register(grpc.NewModule); err != nil {
+		logger.Panic().Err(err).Msg("'gRPC' module can't be registered")
 	}
 
-	var boxConf component.Configuration
-	if err := newFactory.GetCustomConfiguration(&boxConf); err != nil {
-		panic(err)
+	var conf conf.Configuration
+	if err := newFactory.GetCustomConfiguration(&conf); err != nil {
+		logger.Panic().Err(err).Msg("Getting custom config failure")
 	}
-
-	module, err := queue.ModuleID.GetModule(newFactory)
+	group, alias, err := getStreamParameters(conf)
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("Getting stream parameters from conf failure")
 	}
 
-	// Create a root event
-	rootEventID := utils.CreateEventID()
-	err = module.GetEventRouter().SendAll(utils.CreateEventBatch(nil,
-		&p_buff.Event{
+	mqMod, err := queue.ModuleID.GetModule(newFactory)
+	if err != nil {
+		logger.Panic().Err(err).Msg("Getting 'RabbitMq' module failure")
+	}
+	grpcMod, err := grpc.ModuleID.GetModule(newFactory)
+	if err != nil {
+		logger.Panic().Err(err).Msg("Getting 'gRPC' module failure")
+	}
+
+	componentConf := newFactory.GetBoxConfig()
+	rootEventID := utils.CreateEventID(componentConf.Book, componentConf.Name)
+	err = mqMod.GetEventRouter().SendAll(utils.CreateEventBatch(nil,
+		&proto.Event{
 			Id:                 rootEventID,
 			ParentId:           nil,
-			StartTimestamp:     timestamp.Now(),
 			EndTimestamp:       nil,
-			Status:             0,
+			Status:             proto.EventStatus_SUCCESS,
 			Name:               "Root Event",
 			Type:               "Message",
 			Body:               nil,
@@ -78,74 +95,64 @@ func main() {
 		},
 	))
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("Sending root event failure")
 	}
-	log.Info().
-		Str("component", "box_template_main").
-		Msg("Created root report event for box")
+	logger.Info().
+		Str("component", "read_mysql_binlog_main").
+		Msg("Created root report event for read-mysql-binlog")
 
-	// Start listening for messages
-	log.Info().
-		Str("component", "box_template_main").
-		Msg(fmt.Sprintf("Start listening for %v messages\n", boxConf.MessageType))
-
-	typeListener := component.NewListener(
-		rootEventID,
-		module.GetMessageRouter(),
-		module.GetEventRouter(),
-		&boxConf,
-		func(args ...interface{}) {},
-	)
-
-	monitor1, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "one")
+	batcher, err := batcher.NewMessageBatcher(mqMod.GetMessageRouter(), batcher.MqMessageBatcherConfig{
+		MqBatcherConfig: batcher.MqBatcherConfig{
+			Book: componentConf.Book,
+		},
+		Group:    group,
+		Protocol: PROTOCOL,
+	})
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("Creating message batcher failure")
 	}
-	defer func(monitor1 queueApi.Monitor) {
-		err := monitor1.Unsubscribe()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot unsubscribe from message 'one' pin")
+	defer func(closer io.Closer) {
+		if err := closer.Close(); err != nil {
+			logger.Error().Err(err).Msg("cannot close message batcher")
 		}
-	}(monitor1)
-	monitor2, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "two")
-	if err != nil {
-		panic(err)
-	}
-	defer func(monitor2 queueApi.Monitor) {
-		err := monitor2.Unsubscribe()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot unsubscribe from message 'two' pin")
-		}
-	}(monitor2)
-
-	monitor3, err := module.GetMessageRouter().SubscribeAll(typeListener, "group", "three")
-	if err != nil {
-		panic(err)
-	}
-	defer func(monitor3 queueApi.Monitor) {
-		err := monitor3.Unsubscribe()
-		if err != nil {
-			log.Error().Err(err).
-				Msg("cannot unsubscribe from message 'three' pin")
-		}
-	}(monitor3)
+	}(batcher)
 
 	promMod, err := prometheus.ModuleID.GetModule(newFactory)
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("Getting 'PrometheusModule' failure")
 	}
 	livenessMonitor := promMod.GetLivenessArbiter().RegisterMonitor("liveness_monitor")
 	readinessMonitor := promMod.GetReadinessArbiter().RegisterMonitor("readiness_monitor")
 	livenessMonitor.Enable()
+	defer livenessMonitor.Disable()
 	readinessMonitor.Enable()
+	defer readinessMonitor.Disable()
 
-	// Start listening for shutdown signal
-	select {
-	case s := <-sigCh:
-		log.Info().Interface("signal", s).Msg("shutdown component because of user signal")
-		return
+	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias)
+	if err != nil {
+		logger.Panic().Err(err).Msg("Read creation failure")
 	}
 
+	lwdp, err := fetcher.NewLwdpFetcher(grpcMod.GetRouter())
+	if err != nil {
+		logger.Panic().Err(err).Msg("Creating lwdp fetcher failure")
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	if err := read.Read(ctx, lwdp); err != nil {
+		logger.Panic().Err(err).Msg("Reading binlog events failure")
+	}
+
+	logger.Info().Msg("shutdown component")
+}
+
+func getStreamParameters(conf conf.Configuration) (string, string, error) {
+	alias := conf.Alias
+	if len(alias) == 0 {
+		return "", "", errors.New("alias can't be empty")
+	}
+	group := component.OrDefaultIfEmpty(conf.Group, conf.Alias)
+	return group, alias, nil
 }

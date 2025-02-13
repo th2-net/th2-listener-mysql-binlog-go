@@ -7,10 +7,33 @@ on:
       - version-*
 
 jobs:
+  check-vulnerabilities:
+    env:
+      report-file: report.txt
+    name: Check vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run check
+        run: govulncheck -show verbose ./... 2>&1 | tee ${{ env.report-file }}
+      - name: Collect report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'govulncheck-report'
+          path: ${{ env.report-file }}
+          overwrite: true
   build:
     runs-on: ubuntu-20.04
+    needs: [check-vulnerabilities]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Prepare custom build version
       - name: Get branch name
@@ -22,7 +45,7 @@ jobs:
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Get go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: "1.23"
 
@@ -39,9 +62,9 @@ jobs:
 
       # Build and publish image 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v2
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -51,7 +74,7 @@ jobs:
 
       - name: Build and push
         id: docker_build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ steps.release_ver.outputs.value }}
