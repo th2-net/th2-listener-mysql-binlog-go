@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -85,10 +86,11 @@ func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
 		return fmt.Errorf("getting the last grouped message failure: %w", err)
 	}
 	err = r.read(ctx, filename, pos)
-	if myErr, ok := err.(*mysql.MyError); ok {
-		logger.Error().Err(err).Msg("Mysql error")
-		if myErr.Code == mysql1236 {
-			switch myErr.Message {
+	var mysqlErr *mysql.MyError
+	if errors.As(err, &mysqlErr) {
+		logger.Error().Err(mysqlErr).Msg("Mysql error")
+		if mysqlErr.Code == mysql1236 {
+			switch mysqlErr.Message {
 			case mysqlIncorrectBinfile:
 				logger.Warn().Str("filename", filename).
 					Msg("Replication binfile incorrect, try to use empty parameters")
