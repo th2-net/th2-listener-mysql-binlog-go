@@ -7,7 +7,7 @@ require (
 	github.com/th2-net/th2-common-mq-batcher-go v0.0.1
 	github.com/th2-net/th2-common-utils-go v0.2.0
 	github.com/th2-net/th2-grpc-common-go v0.0.1
-	github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.0-20250213065655-4bf4e9c12377
+	github.com/th2-net/th2-lwdp-grpc-fetcher-go v0.0.1
 )
 
 require (
