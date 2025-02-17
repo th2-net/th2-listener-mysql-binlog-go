@@ -1,0 +1,10 @@
+{
+  "queues": {
+    "test_queue": {
+      "name": "routing_key",
+      "queue": "",
+      "exchange": "th2",
+      "attributes": ["transport-group", "publish"]
+    }
+  }
+}
