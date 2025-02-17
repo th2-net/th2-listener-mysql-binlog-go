@@ -95,13 +95,6 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # - name: Get nearest tag
-      #   id: nearest-tag
-      #   run: echo "value=$(git describe --abbrev=0 --tags)" >> $GITHUB_OUTPUT
-
-      # - name: Show nearest tag
-      #   run: echo "${{ steps.nearest-tag.outputs.value }}"
-
       - name: Build changelog
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v5
