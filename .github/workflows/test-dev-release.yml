@@ -1,0 +1,21 @@
+name: Publish custom docker image
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - version-*
+
+jobs:
+  release-version:
+    uses: ./.github/workflows/project-info.yml
+    with:
+      update-fragment: patch
+  build:
+    uses: ./.github/workflows/build.yml
+    needs: 
+      - release-version
+    with:
+      release-version: ${{ needs.release-version.outputs.next-release-version }}
+      docker-image-version: ${{ needs.release-version.outputs.next-release-version }}-dev
+      create-github-release: true
