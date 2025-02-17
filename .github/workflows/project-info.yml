@@ -41,7 +41,7 @@ jobs:
 
       - name: Get branch name
         id: branch
-        run: echo "value=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+        run: echo "value=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
       - name: Show branch name
         run: echo "${{ steps.branch.outputs.value }}"
