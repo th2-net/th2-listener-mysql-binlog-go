@@ -1,0 +1,32 @@
+{
+    "categories": [
+      {
+        "title": "## 🚀 Features",
+        "labels": ["enhancement"]
+      },
+      {
+        "title": "## 🐛 Fixes",
+        "labels": ["fix"]
+      },
+      {
+        "title": "## Dependencies",
+        "labels": ["dependencies"]
+      },
+      {
+        "title": "## 📦 Uncategorized",
+        "labels": []
+      }
+    ],
+    "ignore_labels": [
+      "ignore"
+    ],
+    "sort": {
+      "order": "ASC",
+      "on_property": "mergedAt"
+    },
+    "template": "#{{CHANGELOG}}\n#{{RELEASE_DIFF}}",
+    "pr_template": "- #{{TITLE}} (PR: ##{{NUMBER}})",
+    "empty_template": "Nothing here today",
+    "trim_values": true,
+    "base_branches": [ "main" ]
+  }

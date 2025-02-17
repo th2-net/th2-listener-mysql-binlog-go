@@ -1,0 +1,25 @@
+name: Publish docker image release
+
+on:
+  workflow_dispatch:
+    inputs:
+      update-fragment:
+        type: choice
+        description: version fragment which should be updated for next release
+        options: 
+        - major
+        - minor
+        - patch
+
+jobs:
+  release-version:
+    uses: ./.github/workflows/project-info.yml
+    with:
+      update-fragment: ${{ inputs.update-fragment }}
+  build:
+    uses: ./.github/workflows/build.yml
+    needs: release-version
+    with:
+      release-version: ${{ needs.release-version.outputs.next-release-version }}
+      docker-image-version: ${{ needs.release-version.outputs.next-release-version }}
+      create-github-release: true

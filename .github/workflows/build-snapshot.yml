@@ -1,0 +1,30 @@
+name: Publish custom docker image
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - version-*
+
+jobs:
+  release-version:
+    uses: ./.github/workflows/project-info.yml
+  prepare-custom-version:
+    runs-on: ubuntu-latest
+    needs: release-version
+    outputs:
+      custom-version: ${{ steps.custom.outputs.value }}
+    steps:
+      - name: Create custom version
+        id: custom
+        run: echo "value=${{ needs.release-version.outputs.current-release-version }}-${{ needs.release-version.outputs.git-branch }}-${{ github.run_id }}-${{ needs.release-version.outputs.git-sha }}" >> $GITHUB_OUTPUT
+      - name: Show custom version
+        run: echo "${{ steps.custom.outputs.value }}"
+  build:
+    uses: ./.github/workflows/build.yml
+    needs: 
+      - release-version
+      - prepare-custom-version
+    with:
+      release-version: ${{ needs.release-version.outputs.current-release-version }}
+      docker-image-version: ${{ needs.prepare-custom-version.outputs.custom-version }}

@@ -1,0 +1,64 @@
+name: Get information about project
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-latest
+      update-fragment:
+        type: string
+        description: version fragment which should be updated for next release
+    outputs:
+      current-release-version:
+        value: ${{ jobs.release-version.outputs.current-release-version }}
+      next-release-version:
+        value: ${{ jobs.release-version.outputs.next-release-version }}
+
+jobs:
+  release-version:
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      git-sha: ${{ steps.sha.outputs.value }}
+      git-branch: ${{ steps.branch.outputs.value }}
+      current-release-version: ${{ env.RELEASE_VERSION }}
+      next-release-version: ${{ env.NEXT_RELEASE_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get SHA of the commit
+        id: sha
+        run: echo "value=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Show SHA of the commit
+        run: echo "${{ steps.sha.outputs.value }}"
+
+      - name: Get branch name
+        id: branch
+        run: echo "value=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+      - name: Show branch name
+        run: echo "${{ steps.branch.outputs.value }}"
+
+      - name: Gen nearest tag
+        id: nearest-tag
+        run: echo "value=$(git describe --tags --match "[0-9]*.[0-9]*.[0-9]*" --abbrev=0 2>/dev/null || echo "0.0.0")" >> $GITHUB_OUTPUT
+
+      - name: Show nearest tag
+        run: echo "${{ steps.nearest-tag.outputs.value }}"
+
+      - name: Get next release version
+        id: version
+        uses: HardNorth/github-version-generate@v1.4.0
+        with:
+          version: ${{ steps.nearest-tag.outputs.value }}
+          next-version-increment-patch: ${{ contains(inputs.update-fragment, 'patch') }}
+          next-version-increment-minor: ${{ contains(inputs.update-fragment, 'minor') }}
+          next-version-increment-major: ${{ contains(inputs.update-fragment, 'major') }}
+
+      - name: Show release versions
+        run: |
+          echo "current: ${{ env.RELEASE_VERSION }}"
+          echo "next: ${{ env.NEXT_RELEASE_VERSION }}"
