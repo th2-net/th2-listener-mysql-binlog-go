@@ -76,7 +76,8 @@ jobs:
       #     labels: com.exactpro.th2.${{ steps.meta.outputs.REPOSITORY_NAME }}=${{ inputs.release-version }}
 
   create-github-release:
-    if: inputs.create-github-release && !cancelled()
+    if: inputs.create-github-release && !cancelled() && (needs.build.result == 'success')
+    needs: build  
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout
