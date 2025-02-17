@@ -75,36 +75,26 @@ jobs:
       #     tags: ghcr.io/${{ github.repository }}:${{ inputs.docker-image-version }}
       #     labels: com.exactpro.th2.${{ steps.meta.outputs.REPOSITORY_NAME }}=${{ inputs.release-version }}
 
-  create-git-tag:
-    if: inputs.create-github-release && !cancelled() && (needs.build.result == 'success')
-    name: Create and push tag
-    needs: build
-    uses: th2-net/.github/.github/workflows/compaund-git-tag-push.yml@main
-    with:
-      runsOn: ${{ inputs.runs-on }}
-      tagName: ${{ inputs.docker-image-version }}
-
   create-github-release:
-    if: inputs.create-github-release && !cancelled() && (needs.create-git-tag.result == 'success')
+    if: inputs.create-github-release && !cancelled()
     runs-on: ${{ inputs.runs-on }}
-    needs: create-git-tag
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get nearest tag
-        id: nearest-tag
-        run: echo "value=$(git describe --abbrev=0 --tags)" >> $GITHUB_OUTPUT
+      # - name: Get nearest tag
+      #   id: nearest-tag
+      #   run: echo "value=$(git describe --abbrev=0 --tags)" >> $GITHUB_OUTPUT
 
-      - name: Show nearest tag
-        run: echo "${{ steps.nearest-tag.outputs.value }}"
+      # - name: Show nearest tag
+      #   run: echo "${{ steps.nearest-tag.outputs.value }}"
 
       - name: Build changelog
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v5
         with:
           configuration: .github/workflows/update-grpc-changelog-config.json
-          fromTag: ${{ steps.nearest-tag.outputs.value }}
+          # fromTag: ${{ steps.nearest-tag.outputs.value }}
           toTag: ${{ inputs.docker-image-version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
