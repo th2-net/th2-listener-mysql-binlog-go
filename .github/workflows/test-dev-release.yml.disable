@@ -1,4 +1,4 @@
-name: Publish custom docker image
+name: test dev release
 
 on:
   push:
