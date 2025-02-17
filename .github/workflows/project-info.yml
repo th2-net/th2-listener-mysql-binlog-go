@@ -11,13 +11,17 @@ on:
         type: string
         description: version fragment which should be updated for next release
     outputs:
+      git-sha: 
+        value: ${{ jobs.prepare-project-info.outputs.git-sha }}
+      git-branch: 
+        value: ${{ jobs.prepare-project-info.outputs.git-branch }}
       current-release-version:
-        value: ${{ jobs.release-version.outputs.current-release-version }}
+        value: ${{ jobs.prepare-project-info.outputs.current-release-version }}
       next-release-version:
-        value: ${{ jobs.release-version.outputs.next-release-version }}
+        value: ${{ jobs.prepare-project-info.outputs.next-release-version }}
 
 jobs:
-  release-version:
+  prepare-project-info:
     runs-on: ${{ inputs.runs-on }}
     outputs:
       git-sha: ${{ steps.sha.outputs.value }}
@@ -37,7 +41,7 @@ jobs:
 
       - name: Get branch name
         id: branch
-        run: echo "value=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+        run: echo "value=${{ github.head_ref }}" >> $GITHUB_OUTPUT
 
       - name: Show branch name
         run: echo "${{ steps.branch.outputs.value }}"
