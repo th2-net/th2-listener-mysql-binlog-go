@@ -1,0 +1,59 @@
+name: Publish release docker image
+
+on:
+  workflow_dispatch:
+    inputs:
+      update-fragment:
+        type: choice
+        default: patch
+        description: version fragment which should be updated for next release
+        options: 
+          - major
+          - minor
+          - patch
+      release-type:
+        type: choice
+        default: dev-release
+        description: type of built release
+        options:
+          - dev-release
+          - release
+
+jobs:
+  release-version:
+    uses: ./.github/workflows/project-info.yml
+    with:
+      update-fragment: ${{ inputs.update-fragment }}
+
+  prepare-target-release:
+    runs-on: ubuntu-latest
+    needs: release-version
+    outputs:
+      release-version: ${{ env.RELEASE_VERSION }}
+      docker-image-version: ${{ env.DOCKER_IMAGE_VERSION }}
+    steps:
+      - name: Prepare release version
+        if: ${{ inputs.release-type == 'release' }}
+        run: |
+          echo "RELEASE_VERSION=${{ needs.release-version.outputs.next-release-version }}" >> "$GITHUB_ENV"
+          echo "DOCKER_IMAGE_VERSION=${{ needs.release-version.outputs.next-release-version }}" >> "$GITHUB_ENV"
+
+      - name: Prepare dev release version
+        if: ${{ inputs.release-type == 'dev-release' }}
+        run: |
+          echo "RELEASE_VERSION=${{ needs.release-version.outputs.next-release-version }}" >> "$GITHUB_ENV"
+          echo "DOCKER_IMAGE_VERSION=${{ needs.release-version.outputs.next-release-version }}-dev" >> "$GITHUB_ENV"
+
+      - name: Show target release version
+        run: |
+          echo "release-version: ${{ env.RELEASE_VERSION }}"
+          echo "docker-image-version: ${{ env.DOCKER_IMAGE_VERSION }}"
+
+  build:
+    name: Build and publish
+    needs: prepare-target-release
+    uses: ./.github/workflows/build.yml
+    with:
+      release-version: ${{ needs.prepare-target-release.outputs.release-version }}
+      docker-image-version: ${{ needs.prepare-target-release.outputs.docker-image-version }}
+      create-github-release: true

@@ -1,0 +1,114 @@
+name: Check, Build and Publish Docker distributions to Github Container Registry ghcr.io
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        required: false
+        type: string
+        default: ubuntu-latest
+      release-version:
+        description: version for docker image label 
+        type: string
+        required: true
+      docker-image-version:
+        type: string
+        required: true
+      create-github-release:
+        description: Whether creating github release
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  check-vulnerabilities:
+    env:
+      report-file: report.txt
+    name: Check vulnerabilities
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run check
+        run: govulncheck -show verbose ./... 2>&1 | tee ${{ env.report-file }}
+
+      - name: Collect report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'govulncheck-report'
+          path: ${{ env.report-file }}
+          overwrite: true
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    needs: check-vulnerabilities
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: echo "REPOSITORY_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_OUTPUT
+        id: meta
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ inputs.docker-image-version }}
+          labels: com.exactpro.th2.${{ steps.meta.outputs.REPOSITORY_NAME }}=${{ inputs.release-version }}
+
+  create-git-tag:
+    if: inputs.create-github-release && !cancelled() && (needs.build.result == 'success')
+    name: Create and push tag
+    needs: build
+    uses: th2-net/.github/.github/workflows/compaund-git-tag-push.yml@main
+    with:
+      runsOn: ${{ inputs.runs-on }}
+      tagName: ${{ inputs.docker-image-version }}
+
+  create-github-release:
+    if: inputs.create-github-release && !cancelled() && (needs.create-git-tag.result == 'success')
+    runs-on: ${{ inputs.runs-on }}
+    needs: create-git-tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Build changelog
+        id: build_changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configuration: .github/workflows/update-grpc-changelog-config.json
+          toTag: ${{ inputs.docker-image-version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        id: create_release
+        uses: ncipollo/release-action@v1.15.0
+        with:
+          body: ${{ steps.build_changelog.outputs.changelog }}
+          name: Release ${{ inputs.docker-image-version }}
+          tag: ${{ inputs.docker-image-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
