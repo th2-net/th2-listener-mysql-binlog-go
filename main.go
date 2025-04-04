@@ -37,7 +37,7 @@ import (
 	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
 	"github.com/th2-net/th2-listener-mysql-binlog-go/component"
 	conf "github.com/th2-net/th2-listener-mysql-binlog-go/component/configuration"
-	"github.com/th2-net/th2-listener-mysql-binlog-go/component/read"
+	"github.com/th2-net/th2-listener-mysql-binlog-go/component/listener"
 )
 
 const (
@@ -98,8 +98,8 @@ func main() {
 		logger.Panic().Err(err).Msg("Sending root event failure")
 	}
 	logger.Info().
-		Str("component", "read_mysql_binlog_main").
-		Msg("Created root report event for read-mysql-binlog")
+		Str("component", "listener_mysql_binlog_main").
+		Msg("Created root report event for listener-mysql-binlog")
 
 	batcher, err := batcher.NewMessageBatcher(mqMod.GetMessageRouter(), batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
@@ -128,9 +128,9 @@ func main() {
 	readinessMonitor.Enable()
 	defer readinessMonitor.Disable()
 
-	read, err := read.NewRead(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias)
+	listener, err := listener.NewListener(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias)
 	if err != nil {
-		logger.Panic().Err(err).Msg("Read creation failure")
+		logger.Panic().Err(err).Msg("Listener creation failure")
 	}
 
 	lwdp, err := fetcher.NewLwdpFetcher(grpcMod.GetRouter())
@@ -141,7 +141,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	if err := read.Read(ctx, lwdp); err != nil {
+	if err := listener.Listen(ctx, lwdp); err != nil {
 		logger.Panic().Err(err).Msg("Reading binlog events failure")
 	}
 

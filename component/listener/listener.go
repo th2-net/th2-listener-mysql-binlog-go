@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package read
+package listener
 
 import (
 	"bytes"
@@ -51,12 +51,12 @@ const (
 )
 
 var (
-	logger = log.ForComponent("read")
+	logger = log.ForComponent("listener")
 )
 
 type newBean func(schema string, table string, fields []string, rows [][]interface{}) interface{}
 
-type Read struct {
+type Listener struct {
 	dbMetadata database.DbMetadata
 	batcher    b.MqBatcher[b.MessageArguments]
 	conf       conf.Connection
@@ -65,12 +65,12 @@ type Read struct {
 	alias      string
 }
 
-func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, group string, alias string) (*Read, error) {
+func NewListener(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, group string, alias string) (*Listener, error) {
 	dbMetadata, err := database.LoadMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
 		return nil, fmt.Errorf("loading schema metadata ta failure: %w", err)
 	}
-	return &Read{
+	return &Listener{
 		dbMetadata: dbMetadata,
 		conf:       conf,
 		batcher:    batcher,
@@ -80,12 +80,12 @@ func NewRead(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, sche
 	}, nil
 }
 
-func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
+func (r *Listener) Listen(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
 	filename, pos, err := r.loadPreviousState(ctx, lwdp)
 	if err != nil {
 		return fmt.Errorf("getting the last grouped message failure: %w", err)
 	}
-	err = r.read(ctx, filename, pos)
+	err = r.listen(ctx, filename, pos)
 	var mysqlErr *mysql.MyError
 	if errors.As(err, &mysqlErr) {
 		logger.Error().Err(mysqlErr).Msg("Mysql error")
@@ -94,15 +94,15 @@ func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
 			case mysqlIncorrectBinfile:
 				logger.Warn().Str("filename", filename).
 					Msg("Replication binfile incorrect, try to use empty parameters")
-				err = r.read(ctx, "", 0)
+				err = r.listen(ctx, "", 0)
 			case mysqlIncorrectPosition:
 				logger.Warn().Str("filename", filename).Uint32("position", pos).
 					Msg("Replication binfile incorrect, try to use 0 position")
-				err = r.read(ctx, filename, 0)
+				err = r.listen(ctx, filename, 0)
 			default:
 				logger.Warn().Str("filename", filename).Uint32("position", pos).
 					Msg("Unknown mysql error message, try to use empty parameters")
-				err = r.read(ctx, "", 0)
+				err = r.listen(ctx, "", 0)
 			}
 		}
 	}
@@ -110,7 +110,7 @@ func (r *Read) Read(ctx context.Context, lwdp fetcher.LwdpFetcher) error {
 	return err
 }
 
-func (r *Read) read(ctx context.Context, filename string, pos uint32) error {
+func (r *Listener) listen(ctx context.Context, filename string, pos uint32) error {
 	cfg := replication.BinlogSyncerConfig{
 		ServerID: 100,
 		Flavor:   "mysql",
@@ -189,11 +189,11 @@ func (r *Read) read(ctx context.Context, filename string, pos uint32) error {
 	}
 }
 
-func (r *Read) Close() error {
+func (r *Listener) Close() error {
 	return nil
 }
 
-func (r *Read) loadPreviousState(ctx context.Context, lwdp fetcher.LwdpFetcher) (string, uint32, error) {
+func (r *Listener) loadPreviousState(ctx context.Context, lwdp fetcher.LwdpFetcher) (string, uint32, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(1)*time.Minute)
 	defer cancel()
 	msg, err := lwdp.GetLastGroupedMessage(ctx, r.book, r.group, r.alias, proto.Direction_FIRST, fetcher.LwdpBase64Format)
@@ -224,7 +224,7 @@ func (r *Read) loadPreviousState(ctx context.Context, lwdp fetcher.LwdpFetcher) 
 	return logName, uint32(num), nil
 }
 
-func (r *Read) processEvent(event *replication.BinlogEvent, logName string, logSeqNum int64, logTimestamp time.Time, createBean newBean) error {
+func (r *Listener) processEvent(event *replication.BinlogEvent, logName string, logSeqNum int64, logTimestamp time.Time, createBean newBean) error {
 	rowsEvent := event.Event.(*replication.RowsEvent)
 	schema := string(rowsEvent.Table.Schema)
 	table := string(rowsEvent.Table.Table)
@@ -241,7 +241,7 @@ func (r *Read) processEvent(event *replication.BinlogEvent, logName string, logS
 	return nil
 }
 
-func (r *Read) batchMessage(bean any, alias string, metadata map[string]string) error {
+func (r *Listener) batchMessage(bean any, alias string, metadata map[string]string) error {
 	data, err := json.Marshal(bean)
 	if err != nil {
 		return fmt.Errorf("marshaling failure: %w", err)
