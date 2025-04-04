@@ -35,4 +35,4 @@ th2-grpc/
 main
 
 # bin file
-/th2-read-mysql-binlog-go
+/th2-listener-mysql-binlog-go

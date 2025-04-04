@@ -35,9 +35,9 @@ import (
 	"github.com/th2-net/th2-common-go/pkg/modules/prometheus"
 	"github.com/th2-net/th2-common-go/pkg/modules/queue"
 	utils "github.com/th2-net/th2-common-utils-go/pkg/event"
-	"github.com/th2-net/th2-read-mysql-binlog-go/component"
-	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
-	"github.com/th2-net/th2-read-mysql-binlog-go/component/read"
+	"github.com/th2-net/th2-listener-mysql-binlog-go/component"
+	conf "github.com/th2-net/th2-listener-mysql-binlog-go/component/configuration"
+	"github.com/th2-net/th2-listener-mysql-binlog-go/component/read"
 )
 
 const (

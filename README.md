@@ -1,16 +1,18 @@
-# th2-read-mysql-binlog-go
+# th2-listener-mysql-binlog-go
 
-Read mysql binlog component connects to mysql data base as `Replication Slave` to read binlog in realtime and send information about `INSERT`, `UPDATE`, `DELETE` operation via RabbitMQ in th2 raw message format. Each raw message has JSON format
+Listener mysql binlog component connects to mysql data base as `Replication Slave` to read binlog in realtime and send information about `INSERT`, `UPDATE`, `DELETE` operation via RabbitMQ in th2 raw message format. Each raw message has JSON format
 
 ## mysql requirements
 
 ### user requirements
 
 User must have the grants
+
 * `replication slave` - access for reading binlog
 * select - access for selecting data from schema.tables to be observed
 
 Create user SQL script:
+
 ```sql
 CREATE USER 'th2'@'%' IDENTIFIED BY 'th2';
 GRANT REPLICATION SLAVE ON *.* TO 'th2'@'%';
@@ -22,7 +24,7 @@ FLUSH PRIVILEGES;
 
 Binlog must be enabled on the mysql server. `binlog_format` option must have `ROW` value
 
-```
+```sh
 [mysqld]
 server_id		           = 1
 log_bin			           = /var/log/mysql/mysql-bin.log
@@ -34,10 +36,12 @@ binlog_row_image           = FULL
 ```
 
 reference:
+
 * https://github.com/julien-duponchelle/python-mysql-replication?tab=readme-ov-file#mysql-server-settings
 * https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html
 
 queries for current value check:
+
 ```sql
 show variables like 'server_id';
 show variables like 'log_bin';
@@ -50,7 +54,7 @@ show variables like 'binlog_row_image';
 
 ## raw message format
 
-Read-mysql-binlog produces th2 raw message where each message has JSON body format and binlog position in properties
+th2-listener-mysql-binlog produces th2 raw message where each message has JSON body format and binlog position in properties
 
 ### th2 message properties
 
@@ -62,12 +66,14 @@ Read-mysql-binlog produces th2 raw message where each message has JSON body form
 ### th2 message body
 
 Each body contains the fields:
+
 * `Schema` - SQL schema name
 * `Table` - SQL table name
 * `Operation` - SQL operation name
 
 #### test schema
-```
+
+```sql
 CREATE TABLE IF NOT EXISTS test.type_test (
     id INT AUTO_INCREMENT PRIMARY KEY,
     int_col INT,
@@ -94,9 +100,11 @@ CREATE TABLE IF NOT EXISTS test.type_test (
 #### insert message
 
 This message contains the field:
+
 * `Inserted` - list of dictionaries with column value pairs for inserted and generated data
 
 Example:
+
 ```json
 {
   "Schema": "test",
@@ -131,11 +139,13 @@ Example:
 #### update message
 
 This message contains the field:
+
 * `Updated` - list of dictionaries contained two fields:
-    * `Before` - dictionary with column value pairs of record before update
-    * `After` - dictionary with column value pairs of record after update
+   * `Before` - dictionary with column value pairs of record before update
+   * `After` - dictionary with column value pairs of record after update
 
 Example:
+
 ```json
 {
   "Schema": "test",
@@ -193,9 +203,11 @@ Example:
 #### delete message
 
 This message contains the field:
+
 * `Deleted` - list of dictionaries with column value pairs of deleted record
 
 Example:
+
 ```json
 {
   "Schema": "test",
@@ -242,14 +254,15 @@ Example:
 * `grpc` (required) - client pin for `com.exactpro.th2.dataprovider.lw.grpc.DataProviderService` service. The pin should be connected to lw-data-provider run in gRPC mode.
 
 th2 CR example
+
 ```yml
 apiVersion: th2.exactpro.com/v2
 kind: Th2Box
 metadata:
-  name: read-mysql
+  name: listener-mysql
 spec:
   disabled: false
-  imageName: ghcr.io/th2-net/th2-read-mysql-binlog-go
+  imageName: ghcr.io/th2-net/th2-listener-mysql-binlog-go
   imageVersion: v0.0.0-20230227123356-3b6c4aceea8f-TH2-5269-13284302048-a8b4b7a
   type: th2-read
   customConfig:
@@ -298,5 +311,5 @@ spec:
 ## useful links:
 
 * [go-mysql-org/go-mysql](https://github.com/go-mysql-org/go-mysql) - A pure Go library to handle MySQL network protocol and replication as used by MySQL and MariaDB.
-* [julien-duponchelle/python-mysql-replication](https://github.com/julien-duponchelle/python-mysql-replication) - Pure Python Implementation of MySQL replication protocol build on top of PyMYSQL. 
+* [julien-duponchelle/python-mysql-replication](https://github.com/julien-duponchelle/python-mysql-replication) - Pure Python Implementation of MySQL replication protocol build on top of PyMYSQL.
 * [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) - A MySQL-Driver for Go's database/sql package

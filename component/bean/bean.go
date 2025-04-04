@@ -17,7 +17,7 @@
 package bean
 
 import (
-	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
+	"github.com/th2-net/th2-listener-mysql-binlog-go/component/database"
 )
 
 const (
@@ -29,14 +29,14 @@ const (
 type Values map[string]interface{}
 
 type Record struct {
-	Schema string
-	Table string
+	Schema    string
+	Table     string
 	Operation string
 }
 
 type Insert struct {
 	Record
-	Inserted  []Values
+	Inserted []Values
 }
 
 type UpdatePair struct {
@@ -46,12 +46,12 @@ type UpdatePair struct {
 
 type Update struct {
 	Record
-	Updated   []UpdatePair
+	Updated []UpdatePair
 }
 
 type Delete struct {
 	Record
-	Deleted   []Values
+	Deleted []Values
 }
 
 func NewInsert(schema string, table string, fields []string, rows [][]interface{}) Insert {
