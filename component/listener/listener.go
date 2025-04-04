@@ -65,7 +65,7 @@ type Listener struct {
 	alias      string
 }
 
-func NewListener(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, group string, alias string) (*Listener, error) {
+func New(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, group string, alias string) (*Listener, error) {
 	dbMetadata, err := database.LoadMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
 		return nil, fmt.Errorf("loading schema metadata ta failure: %w", err)

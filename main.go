@@ -128,7 +128,7 @@ func main() {
 	readinessMonitor.Enable()
 	defer readinessMonitor.Disable()
 
-	listener, err := listener.NewListener(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias)
+	listener, err := listener.New(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias)
 	if err != nil {
 		logger.Panic().Err(err).Msg("Listener creation failure")
 	}
