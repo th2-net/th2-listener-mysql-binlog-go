@@ -1,4 +1,4 @@
-module github.com/th2-net/th2-read-mysql-binlog-go
+module github.com/th2-net/th2-listener-mysql-binlog-go
 
 go 1.23.0
 

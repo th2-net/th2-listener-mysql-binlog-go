@@ -30,10 +30,10 @@ import (
 	"github.com/th2-net/th2-common-go/pkg/log"
 	b "github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
 	proto "github.com/th2-net/th2-grpc-common-go"
+	"github.com/th2-net/th2-listener-mysql-binlog-go/component/bean"
+	conf "github.com/th2-net/th2-listener-mysql-binlog-go/component/configuration"
+	"github.com/th2-net/th2-listener-mysql-binlog-go/component/database"
 	"github.com/th2-net/th2-lwdp-grpc-fetcher-go/pkg/fetcher"
-	"github.com/th2-net/th2-read-mysql-binlog-go/component/bean"
-	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
-	"github.com/th2-net/th2-read-mysql-binlog-go/component/database"
 )
 
 const (

@@ -23,7 +23,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/th2-net/th2-common-go/pkg/log"
-	conf "github.com/th2-net/th2-read-mysql-binlog-go/component/configuration"
+	conf "github.com/th2-net/th2-listener-mysql-binlog-go/component/configuration"
 )
 
 var (
