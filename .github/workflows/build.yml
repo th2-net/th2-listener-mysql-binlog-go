@@ -38,8 +38,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: "Show version: ${{ inputs.docker-image-version }}"
-        run: echo ${{ inputs.docker-image-version }}
+      - name: "Show version"
+        run: |
+          echo -e "repository:\n\tghcr.io/${{ github.repository }}"
+          echo -e "version:\n\t${{ inputs.docker-image-version }}"
+          echo -e "name:\n\tghcr.io/${{ github.repository }}:${{ inputs.docker-image-version }}"
 
       - name: Set up Go
         uses: actions/setup-go@v6
