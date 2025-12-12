@@ -159,10 +159,9 @@ func (r *Listener) listen(ctx context.Context, filename string, pos uint32) erro
 		// Dump event
 		eventType := e.Header.EventType
 		switch eventType {
-		// case replication.QUERY_EVENT:
-		// 	queryEvent := e.Event.(*replication.QueryEvent)
-		// 	fmt.Printf("type: %s, query: %s\n", eventType, queryEvent.Query)
-		// 	break
+		case replication.QUERY_EVENT:
+			queryEvent := e.Event.(*replication.QueryEvent)
+			logger.Info().Any("type", eventType).Any("event", queryEvent).Msg("query event")
 		case replication.WRITE_ROWS_EVENTv1,
 			replication.WRITE_ROWS_EVENTv2:
 			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
