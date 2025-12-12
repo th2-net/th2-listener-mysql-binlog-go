@@ -17,22 +17,21 @@
 package bean
 
 import (
+	"fmt"
+
 	"github.com/th2-net/th2-listener-mysql-binlog-go/component/database"
 )
 
-const (
-	insertOperation Operation = "INSERT"
-	updateOperation Operation = "UPDATE"
-	deleteOperation Operation = "DELETE"
-
-	truncateOperation    Operation = "TRUNCATE"
-	createTableOperation Operation = "CREATE_TABLE"
-	dropTableOperation   Operation = "DROP_TABLE"
-	alterTableOperation  Operation = "ALTER_TABLE"
-	unknownOperation     Operation = "UNKNOWN"
-)
-
 type Operation string
+type Bean interface {
+	// Returns approximate size (bigger or equal than Serialize) for Splittable instance
+	SizeBytes() int
+	Serialize() ([]byte, error)
+	// Returns true if instance content allow to execute split
+	Splittable() bool
+	// Returns parts as close as possible in size.
+	Split(size int) []Bean
+}
 
 type Values map[string]interface{}
 
@@ -42,45 +41,52 @@ type Record struct {
 	Operation Operation
 }
 
-type Insert struct {
-	Record
-	Inserted []Values
+func (r Record) sizeBytes() int {
+	size := 2                         // {...}
+	size += 10 + len(r.Schema) + 2    // "Schema":"...",
+	size += 9 + len(r.Table) + 2      // "Table":"...",
+	size += 13 + len(r.Operation) + 2 // "Operation":"...",
+	return size
 }
 
-type UpdatePair struct {
-	Before Values
-	After  Values
+func (val Values) sizeBytes() int {
+	size := 2            // {...}
+	size += len(val) - 1 // ...,...
+	for k, v := range val {
+		size += 1 + len(k) + 3 + len(fmt.Sprintf("%v", v)) + 1 // "<k>":"<v>"
+	}
+	return size
 }
 
-type Update struct {
-	Record
-	Updated []UpdatePair
+func sliceValuesSizeBytes(slice []Values) int {
+	size := len(slice) - 1 // ...,...
+	for _, val := range slice {
+		size += val.sizeBytes()
+	}
+	return size
 }
 
-type Delete struct {
-	Record
-	Deleted []Values
-}
-
-type Query struct {
-	Record
-	Query string
-}
-
-func NewInsert(schema string, table string, fields []string, rows [][]any) Insert {
-	return Insert{Record: Record{Schema: schema, Table: table, Operation: insertOperation}, Inserted: createValues(fields, rows)}
-}
-
-func NewUpdate(schema string, table string, fields []string, rows [][]any) Update {
-	return Update{Record: Record{Schema: schema, Table: table, Operation: updateOperation}, Updated: createUpdatePairs(fields, rows)}
-}
-
-func NewDelete(schema string, table string, fields []string, rows [][]any) Delete {
-	return Delete{Record: Record{Schema: schema, Table: table, Operation: deleteOperation}, Deleted: createValues(fields, rows)}
-}
-
-func NewQuery(schema string, table string, query string, operation Operation) Query {
-	return Query{Record: Record{Schema: schema, Table: table, Operation: operation}, Query: query}
+func sliceValuesSplit(slice []Values, baseSize int, maxSize int) [][]Values {
+	var res [][]Values
+	var partSize int
+	var part []Values
+	for i, val := range slice {
+		valSize := val.sizeBytes()
+		if i == 0 {
+			partSize = baseSize + valSize
+			part = []Values{val}
+		} else {
+			if partSize+valSize+1 > maxSize {
+				res = append(res, part)
+				partSize = baseSize + valSize
+				part = []Values{val}
+			} else {
+				partSize += valSize + 1 // ...,...
+				part = append(part, val)
+			}
+		}
+	}
+	return append(res, part)
 }
 
 func createValues(tableMetadata database.TableMetadata, rows [][]any) []Values {
