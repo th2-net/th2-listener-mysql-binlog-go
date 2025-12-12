@@ -38,6 +38,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: "Show version"
+        run: |
+          echo -e "repository:\n\tghcr.io/${{ github.repository }}"
+          echo -e "version:\n\t${{ inputs.docker-image-version }}"
+          echo -e "name:\n\tghcr.io/${{ github.repository }}:${{ inputs.docker-image-version }}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -50,10 +61,17 @@ jobs:
       - run: echo "REPOSITORY_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_OUTPUT
         id: meta
 
-      - name: Build and push
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make run-test
+
+      - name: Push
         id: docker_build
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: ${{ github.actor != 'dependabot[bot]' }}
           tags: ghcr.io/${{ github.repository }}:${{ inputs.docker-image-version }}
           labels: com.exactpro.th2.${{ steps.meta.outputs.REPOSITORY_NAME }}=${{ inputs.release-version }}
