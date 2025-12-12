@@ -27,7 +27,7 @@ func TestExtractOperation(t *testing.T) {
 		{
 			name:      "unknown",
 			query:     ``,
-			operation: unknownOperation,
+			operation: UnknownOperation,
 		},
 		{
 			name:      "truncate",

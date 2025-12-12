@@ -54,5 +54,5 @@ func ExtractOperation(query string) Operation {
 			return matchData.operation
 		}
 	}
-	return unknownOperation
+	return UnknownOperation
 }
