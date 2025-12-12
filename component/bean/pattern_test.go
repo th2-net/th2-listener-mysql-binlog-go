@@ -100,6 +100,15 @@ func TestExtractOperation(t *testing.T) {
 			operation: createTableOperation,
 		},
 		{
+			name: "create table 7",
+			query: `CREATE TABLE test.users
+			(
+				col1 INT,
+				col2 VARCHAR(100)
+			)  ENGINE=InnoDB`,
+			operation: createTableOperation,
+		},
+		{
 			name:      "drop table 1",
 			query:     "DROP TABLE users;",
 			operation: dropTableOperation,

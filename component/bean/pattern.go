@@ -34,7 +34,7 @@ func init() {
 			operation: truncateOperation,
 		},
 		{
-			regex:     regexp.MustCompile(`(?i)^\s*CREATE\s+(TEMPORARY\s+)?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?(` + "`" + `?[\w]+` + "`" + `?\.)?` + "`" + `?[\w]+` + "`" + `?\s*\((?s).*\)\s*;?$`),
+			regex:     regexp.MustCompile(`(?i)^\s*CREATE\s+(TEMPORARY\s+)?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?(` + "`" + `?[\w]+` + "`" + `?\.)?` + "`" + `?[\w]+` + "`" + `?\s*\((?s).*\).*;?$`),
 			operation: createTableOperation,
 		},
 		{
