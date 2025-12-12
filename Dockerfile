@@ -3,8 +3,7 @@ RUN apt update \
     && apt install -y make
 WORKDIR /app
 ADD . /app
-RUN make
-RUN make run-test
+RUN make build run-test
 RUN go build -o main .
 
 FROM ubuntu:latest

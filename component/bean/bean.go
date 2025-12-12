@@ -21,17 +21,25 @@ import (
 )
 
 const (
-	insertOperation = "INSERT"
-	updateOperation = "UPDATE"
-	deleteOperation = "DELETE"
+	insertOperation Operation = "INSERT"
+	updateOperation Operation = "UPDATE"
+	deleteOperation Operation = "DELETE"
+
+	truncateOperation    Operation = "TRUNCATE"
+	createTableOperation Operation = "CREATE_TABLE"
+	dropTableOperation   Operation = "DROP_TABLE"
+	alterTableOperation  Operation = "ALTER_TABLE"
+	unknownOperation     Operation = "UNKNOWN"
 )
+
+type Operation string
 
 type Values map[string]interface{}
 
 type Record struct {
 	Schema    string
 	Table     string
-	Operation string
+	Operation Operation
 }
 
 type Insert struct {
@@ -54,19 +62,28 @@ type Delete struct {
 	Deleted []Values
 }
 
-func NewInsert(schema string, table string, fields []string, rows [][]interface{}) Insert {
+type Query struct {
+	Record
+	Query string
+}
+
+func NewInsert(schema string, table string, fields []string, rows [][]any) Insert {
 	return Insert{Record: Record{Schema: schema, Table: table, Operation: insertOperation}, Inserted: createValues(fields, rows)}
 }
 
-func NewUpdate(schema string, table string, fields []string, rows [][]interface{}) Update {
+func NewUpdate(schema string, table string, fields []string, rows [][]any) Update {
 	return Update{Record: Record{Schema: schema, Table: table, Operation: updateOperation}, Updated: createUpdatePairs(fields, rows)}
 }
 
-func NewDelete(schema string, table string, fields []string, rows [][]interface{}) Delete {
+func NewDelete(schema string, table string, fields []string, rows [][]any) Delete {
 	return Delete{Record: Record{Schema: schema, Table: table, Operation: deleteOperation}, Deleted: createValues(fields, rows)}
 }
 
-func createValues(tableMetadata database.TableMetadata, rows [][]interface{}) []Values {
+func NewQuery(schema string, query string, operation Operation) Query {
+	return Query{Record: Record{Schema: schema, Operation: operation}, Query: query}
+}
+
+func createValues(tableMetadata database.TableMetadata, rows [][]any) []Values {
 	result := make([]Values, len(rows))
 	for index, row := range rows {
 		values := Values{}

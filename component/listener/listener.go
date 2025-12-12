@@ -135,13 +135,13 @@ func (r *Listener) listen(ctx context.Context, filename string, pos uint32) erro
 	var logSeqNum int64
 	var logTimestamp time.Time
 
-	newInsert := func(schema string, table string, fields []string, rows [][]interface{}) interface{} {
+	newInsert := func(schema string, table string, fields []string, rows [][]any) any {
 		return bean.NewInsert(schema, table, fields, rows)
 	}
-	newUpdate := func(schema string, table string, fields []string, rows [][]interface{}) interface{} {
+	newUpdate := func(schema string, table string, fields []string, rows [][]any) any {
 		return bean.NewUpdate(schema, table, fields, rows)
 	}
-	newDelete := func(schema string, table string, fields []string, rows [][]interface{}) interface{} {
+	newDelete := func(schema string, table string, fields []string, rows [][]any) any {
 		return bean.NewDelete(schema, table, fields, rows)
 	}
 
@@ -160,21 +160,22 @@ func (r *Listener) listen(ctx context.Context, filename string, pos uint32) erro
 		eventType := e.Header.EventType
 		switch eventType {
 		case replication.QUERY_EVENT:
-			queryEvent := e.Event.(*replication.QueryEvent)
-			logger.Info().Any("type", eventType).Any("event", queryEvent).Msg("query event")
+			if err := r.processQueryEvent(e, logName, logSeqNum, logTimestamp); err != nil {
+				return fmt.Errorf("processing query event failure: %w", err)
+			}
 		case replication.WRITE_ROWS_EVENTv1,
 			replication.WRITE_ROWS_EVENTv2:
-			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
+			if err := r.processRowsEvent(e, logName, logSeqNum, logTimestamp, newInsert); err != nil {
 				return fmt.Errorf("processing write event failure: %w", err)
 			}
 		case replication.UPDATE_ROWS_EVENTv1,
 			replication.UPDATE_ROWS_EVENTv2:
-			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newUpdate); err != nil {
+			if err := r.processRowsEvent(e, logName, logSeqNum, logTimestamp, newUpdate); err != nil {
 				return fmt.Errorf("processing update event failure: %w", err)
 			}
 		case replication.DELETE_ROWS_EVENTv1,
 			replication.DELETE_ROWS_EVENTv2:
-			if err := r.processEvent(e, logName, logSeqNum, logTimestamp, newDelete); err != nil {
+			if err := r.processRowsEvent(e, logName, logSeqNum, logTimestamp, newDelete); err != nil {
 				return fmt.Errorf("processing delete event failure: %w", err)
 			}
 		case replication.ANONYMOUS_GTID_EVENT:
@@ -223,8 +224,11 @@ func (r *Listener) loadPreviousState(ctx context.Context, lwdp fetcher.LwdpFetch
 	return logName, uint32(num), nil
 }
 
-func (r *Listener) processEvent(event *replication.BinlogEvent, logName string, logSeqNum int64, logTimestamp time.Time, createBean newBean) error {
-	rowsEvent := event.Event.(*replication.RowsEvent)
+func (r *Listener) processRowsEvent(event *replication.BinlogEvent, logName string, logSeqNum int64, logTimestamp time.Time, createBean newBean) error {
+	rowsEvent, ok := event.Event.(*replication.RowsEvent)
+	if !ok {
+		return fmt.Errorf("cast event failure")
+	}
 	schema := string(rowsEvent.Table.Schema)
 	table := string(rowsEvent.Table.Table)
 	fields := r.dbMetadata.GetFields(schema, table)
@@ -234,6 +238,22 @@ func (r *Listener) processEvent(event *replication.BinlogEvent, logName string, 
 	}
 	bean := createBean(schema, table, fields, rowsEvent.Rows)
 	metadata := createMetadata(schema, table, logName, event.Header.LogPos, logSeqNum, logTimestamp)
+	if err := r.batchMessage(bean, r.alias, metadata); err != nil {
+		return fmt.Errorf("batching event failure: %w", err)
+	}
+	return nil
+}
+
+func (r *Listener) processQueryEvent(event *replication.BinlogEvent, logName string, logSeqNum int64, logTimestamp time.Time) error {
+	queryEvent, ok := event.Event.(*replication.QueryEvent)
+	if !ok {
+		return fmt.Errorf("cast event failure")
+	}
+	schema := string(queryEvent.Schema)
+	query := string(queryEvent.Query)
+	operation := bean.ExtractOperation(query)
+	bean := bean.NewQuery(schema, query, operation)
+	metadata := createMetadata(schema, "", logName, event.Header.LogPos, logSeqNum, logTimestamp)
 	if err := r.batchMessage(bean, r.alias, metadata); err != nil {
 		return fmt.Errorf("batching event failure: %w", err)
 	}
