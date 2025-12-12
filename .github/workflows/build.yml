@@ -68,6 +68,7 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: ${{ github.actor != 'dependabot[bot]' }}
           tags: ghcr.io/${{ github.repository }}:${{ inputs.docker-image-version }}
           labels: com.exactpro.th2.${{ steps.meta.outputs.REPOSITORY_NAME }}=${{ inputs.release-version }}
