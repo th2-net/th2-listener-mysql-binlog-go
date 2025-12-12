@@ -78,7 +78,6 @@ func TestSizeBytesVsSerialized(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			bean := tc.newBean()
 			size := bean.SizeBytes()
 			data, err := bean.Serialize()
@@ -163,7 +162,6 @@ func TestSplittable(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			bean := tc.newBean()
 			splittable := bean.Splittable()
 			if tc.splittable != splittable {
@@ -175,46 +173,6 @@ func TestSplittable(t *testing.T) {
 			}
 			if !tc.splittable && size != 0 {
 				t.Fatalf("size expected = 0, got: %d, bean: %v", size, bean)
-			}
-		})
-	}
-}
-
-func TestSplit(t *testing.T) {
-	tests := []struct {
-		name       string
-		newBean    func() bean.Bean
-		splittable bool
-	}{
-		{
-			name: "splittable",
-			newBean: func() bean.Bean {
-				schema := randString()
-				table := randString()
-				fields, rows := randRowsM(randIntM(minWidth, maxWidth), randIntM(1, maxHeight))
-				return bean.NewInsert(schema, table, fields, rows)
-			},
-			splittable: true,
-		},
-		{
-			name: "splittable",
-			newBean: func() bean.Bean {
-				schema := randString()
-				table := randString()
-				fields, rows := randRowsM(randIntM(minWidth, maxWidth), randIntM(1, maxHeight))
-				return bean.NewDelete(schema, table, fields, rows)
-			},
-			splittable: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			bean := tc.newBean()
-			splittable := bean.Splittable()
-			if tc.splittable != splittable {
-				t.Fatalf("splittable expected: %v, got: %v, bean: %v", tc.splittable, splittable, bean)
 			}
 		})
 	}
