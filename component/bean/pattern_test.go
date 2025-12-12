@@ -28,7 +28,7 @@ func TestExtractOperation(t *testing.T) {
 	}{
 		{
 			name:      "unknown",
-			operation: UnknownOperation,
+			operation: unknownOperation,
 		},
 		{
 			name:      "truncate 1",
@@ -212,7 +212,10 @@ func TestExtractOperation(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			schema, table, operation := ExtractOperation(tc.query)
+			schema, table, operation, ok := ExtractOperation(tc.query)
+			if (tc.operation != unknownOperation) != ok {
+				t.Fatalf("ok expected: %v, got: %v", tc.operation != unknownOperation, ok)
+			}
 			if tc.schema != schema {
 				t.Fatalf("schema expected: %s, got: %s", tc.schema, schema)
 			}

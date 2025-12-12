@@ -43,7 +43,7 @@ func init() {
 	}
 }
 
-func ExtractOperation(query string) (string, string, Operation) {
+func ExtractOperation(query string) (string, string, Operation, bool) {
 	for _, matchData := range queryMatchData {
 		matches := matchData.regex.FindStringSubmatch(query)
 		if matches == nil {
@@ -58,9 +58,9 @@ func ExtractOperation(query string) (string, string, Operation) {
 				table = match
 			}
 		}
-		return schema, table, matchData.operation
+		return schema, table, matchData.operation, true
 	}
-	return "", "", UnknownOperation
+	return "", "", unknownOperation, false
 }
 
 func newMatchData(regex *regexp.Regexp, operation Operation) matchData {

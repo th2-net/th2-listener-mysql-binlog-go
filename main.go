@@ -101,9 +101,11 @@ func main() {
 		Str("component", "listener_mysql_binlog_main").
 		Msg("Created root report event for listener-mysql-binlog")
 
+	maxSize := batcher.DefaultBatchSize
 	batcher, err := batcher.NewMessageBatcher(mqMod.GetMessageRouter(), batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
-			Book: componentConf.Book,
+			Book:           componentConf.Book,
+			BatchSizeBytes: maxSize,
 		},
 		Group:    group,
 		Protocol: PROTOCOL,
@@ -128,7 +130,7 @@ func main() {
 	readinessMonitor.Enable()
 	defer readinessMonitor.Disable()
 
-	listener, err := listener.New(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias)
+	listener, err := listener.New(batcher, conf.Connection, conf.Schemas, componentConf.Book, group, alias, int(maxSize))
 	if err != nil {
 		logger.Panic().Err(err).Msg("Listener creation failure")
 	}
