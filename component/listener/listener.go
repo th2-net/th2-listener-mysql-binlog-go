@@ -251,8 +251,8 @@ func (r *Listener) processQueryEvent(event *replication.BinlogEvent, logName str
 	}
 	schema := string(queryEvent.Schema)
 	query := string(queryEvent.Query)
-	exSchema, exTable, operation := bean.ExtractOperation(query)
-	if operation == bean.UnknownOperation {
+	exSchema, exTable, operation, ok := bean.ExtractOperation(query)
+	if !ok {
 		return nil
 	}
 	if schema == "" && exSchema != "" {

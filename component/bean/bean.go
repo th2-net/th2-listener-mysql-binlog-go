@@ -29,7 +29,7 @@ const (
 	createTableOperation Operation = "CREATE_TABLE"
 	dropTableOperation   Operation = "DROP_TABLE"
 	alterTableOperation  Operation = "ALTER_TABLE"
-	UnknownOperation     Operation = "UNKNOWN"
+	unknownOperation     Operation = "UNKNOWN"
 )
 
 type Operation string
