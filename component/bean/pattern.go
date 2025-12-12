@@ -18,41 +18,55 @@ package bean
 
 import "regexp"
 
+const (
+	schemaGroup = "schema"
+	tableGroup  = "table"
+)
+
 var (
 	queryMatchData []matchData
 )
 
 type matchData struct {
-	regex     *regexp.Regexp
-	operation Operation
+	regex       *regexp.Regexp
+	subexpNames []string
+	operation   Operation
 }
 
 func init() {
 	queryMatchData = []matchData{
-		{
-			regex:     regexp.MustCompile(`(?i)^\s*TRUNCATE\s+TABLE\s+(` + "`" + `?[\w]+` + "`" + `?\.)?` + "`" + `?[\w]+` + "`" + `?\s*;?$`),
-			operation: truncateOperation,
-		},
-		{
-			regex:     regexp.MustCompile(`(?i)^\s*CREATE\s+(TEMPORARY\s+)?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?(` + "`" + `?[\w]+` + "`" + `?\.)?` + "`" + `?[\w]+` + "`" + `?\s*\((?s).*\).*;?$`),
-			operation: createTableOperation,
-		},
-		{
-			regex:     regexp.MustCompile(`(?i)^\s*DROP\s+TABLE\s+(IF\s+EXISTS\s+)?(` + "`" + `?[\w]+` + "`" + `?\.)?` + "`" + `?[\w]+` + "`" + `?\s*;?$`),
-			operation: dropTableOperation,
-		},
-		{
-			regex:     regexp.MustCompile(`(?i)^\s*ALTER\s+TABLE\s+(` + "`" + `?[\w]+` + "`" + `?\.)?` + "`" + `?[\w]+` + "`" + `?\s+(?s).+;?$`),
-			operation: alterTableOperation,
-		},
+		newMatchData(regexp.MustCompile(`(?i)^\s*TRUNCATE\s+TABLE\s+(`+"`"+`?(?P<`+schemaGroup+`>[\w]+)`+"`"+`?\.)?`+"`"+`?(?P<`+tableGroup+`>[\w]+)`+"`"+`?\s*;?$`), truncateOperation),
+		newMatchData(regexp.MustCompile(`(?i)^\s*TRUNCATE\s+TABLE\s+(`+"`"+`?(?P<`+schemaGroup+`>[\w]+)`+"`"+`?\.)?`+"`"+`?(?P<`+tableGroup+`>[\w]+)`+"`"+`?\s*;?$`), truncateOperation),
+		newMatchData(regexp.MustCompile(`(?i)^\s*CREATE\s+(TEMPORARY\s+)?TABLE\s+(IF\s+NOT\s+EXISTS\s+)?(`+"`"+`?(?P<`+schemaGroup+`>[\w]+)`+"`"+`?\.)?`+"`"+`?(?P<`+tableGroup+`>[\w]+)`+"`"+`?\s*\((?s).*\).*;?$`), createTableOperation),
+		newMatchData(regexp.MustCompile(`(?i)^\s*DROP\s+TABLE\s+(IF\s+EXISTS\s+)?(`+"`"+`?(?P<`+schemaGroup+`>[\w]+)`+"`"+`?\.)?`+"`"+`?(?P<`+tableGroup+`>[\w]+)`+"`"+`?\s*;?$`), dropTableOperation),
+		newMatchData(regexp.MustCompile(`(?i)^\s*ALTER\s+TABLE\s+(`+"`"+`?(?P<`+schemaGroup+`>[\w]+)`+"`"+`?\.)?`+"`"+`?(?P<`+tableGroup+`>[\w]+)`+"`"+`?\s+(?s).+;?$`), alterTableOperation),
 	}
 }
 
-func ExtractOperation(query string) Operation {
+func ExtractOperation(query string) (string, string, Operation) {
 	for _, matchData := range queryMatchData {
-		if matchData.regex.MatchString(query) {
-			return matchData.operation
+		matches := matchData.regex.FindStringSubmatch(query)
+		if matches == nil {
+			continue
 		}
+		var schema, table string
+		for i, match := range matches {
+			switch matchData.subexpNames[i] {
+			case schemaGroup:
+				schema = match
+			case tableGroup:
+				table = match
+			}
+		}
+		return schema, table, matchData.operation
 	}
-	return UnknownOperation
+	return "", "", UnknownOperation
+}
+
+func newMatchData(regex *regexp.Regexp, operation Operation) matchData {
+	return matchData{
+		regex:       regex,
+		subexpNames: regex.SubexpNames(),
+		operation:   operation,
+	}
 }

@@ -251,11 +251,14 @@ func (r *Listener) processQueryEvent(event *replication.BinlogEvent, logName str
 	}
 	schema := string(queryEvent.Schema)
 	query := string(queryEvent.Query)
-	operation := bean.ExtractOperation(query)
+	exSchema, exTable, operation := bean.ExtractOperation(query)
 	if operation == bean.UnknownOperation {
 		return nil
 	}
-	bean := bean.NewQuery(schema, query, operation)
+	if schema == "" && exSchema != "" {
+		schema = exSchema
+	}
+	bean := bean.NewQuery(schema, exTable, query, operation)
 	metadata := createMetadata(schema, "", logName, event.Header.LogPos, logSeqNum, logTimestamp)
 	if err := r.batchMessage(bean, r.alias, metadata); err != nil {
 		return fmt.Errorf("batching event failure: %w", err)

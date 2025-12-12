@@ -79,8 +79,8 @@ func NewDelete(schema string, table string, fields []string, rows [][]any) Delet
 	return Delete{Record: Record{Schema: schema, Table: table, Operation: deleteOperation}, Deleted: createValues(fields, rows)}
 }
 
-func NewQuery(schema string, query string, operation Operation) Query {
-	return Query{Record: Record{Schema: schema, Operation: operation}, Query: query}
+func NewQuery(schema string, table string, query string, operation Operation) Query {
+	return Query{Record: Record{Schema: schema, Table: table, Operation: operation}, Query: query}
 }
 
 func createValues(tableMetadata database.TableMetadata, rows [][]any) []Values {
