@@ -38,6 +38,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: "Show version: ${{ inputs.docker-image-version }}"
+        run: echo ${{ inputs.docker-image-version }}
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
