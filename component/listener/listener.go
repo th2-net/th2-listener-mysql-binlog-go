@@ -19,7 +19,6 @@ package listener
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -42,7 +41,8 @@ const (
 	logSeqNumProp    = "seq"
 	logTimestampProp = "timestamp"
 
-	msgProtocol = "json"
+	msgProtocol     = "json"
+	msgProtocolSize = len("json")
 
 	// The 1236 error can occur due to incorrect or missing log files or positions in replication.
 	mysql1236              = 1236
@@ -54,7 +54,7 @@ var (
 	logger = log.ForComponent("listener")
 )
 
-type newBean func(schema string, table string, fields []string, rows [][]interface{}) interface{}
+type newBean func(schema string, table string, fields []string, rows [][]any) bean.Bean
 
 type Listener struct {
 	dbMetadata database.DbMetadata
@@ -63,9 +63,10 @@ type Listener struct {
 	book       string
 	group      string
 	alias      string
+	maxSize    int
 }
 
-func New(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, group string, alias string) (*Listener, error) {
+func New(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas conf.SchemasConf, book string, group string, alias string, maxSize int) (*Listener, error) {
 	dbMetadata, err := database.LoadMetadata(conf.Host, conf.Port, conf.Username, conf.Password, schemas)
 	if err != nil {
 		return nil, fmt.Errorf("loading schema metadata ta failure: %w", err)
@@ -77,6 +78,7 @@ func New(batcher b.MqBatcher[b.MessageArguments], conf conf.Connection, schemas 
 		book:       book,
 		group:      group,
 		alias:      alias,
+		maxSize:    int(maxSize),
 	}, nil
 }
 
@@ -135,13 +137,13 @@ func (r *Listener) listen(ctx context.Context, filename string, pos uint32) erro
 	var logSeqNum int64
 	var logTimestamp time.Time
 
-	newInsert := func(schema string, table string, fields []string, rows [][]any) any {
+	newInsert := func(schema string, table string, fields []string, rows [][]any) bean.Bean {
 		return bean.NewInsert(schema, table, fields, rows)
 	}
-	newUpdate := func(schema string, table string, fields []string, rows [][]any) any {
+	newUpdate := func(schema string, table string, fields []string, rows [][]any) bean.Bean {
 		return bean.NewUpdate(schema, table, fields, rows)
 	}
-	newDelete := func(schema string, table string, fields []string, rows [][]any) any {
+	newDelete := func(schema string, table string, fields []string, rows [][]any) bean.Bean {
 		return bean.NewDelete(schema, table, fields, rows)
 	}
 
@@ -237,11 +239,8 @@ func (r *Listener) processRowsEvent(event *replication.BinlogEvent, logName stri
 		return nil
 	}
 	bean := createBean(schema, table, fields, rowsEvent.Rows)
-	metadata := createMetadata(schema, table, logName, event.Header.LogPos, logSeqNum, logTimestamp)
-	if err := r.batchMessage(bean, r.alias, metadata); err != nil {
-		return fmt.Errorf("batching event failure: %w", err)
-	}
-	return nil
+	metadata := createMetadata(logName, event.Header.LogPos, logSeqNum, logTimestamp)
+	return r.putToBatch(bean, metadata)
 }
 
 func (r *Listener) processQueryEvent(event *replication.BinlogEvent, logName string, logSeqNum int64, logTimestamp time.Time) error {
@@ -251,26 +250,50 @@ func (r *Listener) processQueryEvent(event *replication.BinlogEvent, logName str
 	}
 	schema := string(queryEvent.Schema)
 	query := string(queryEvent.Query)
-	exSchema, exTable, operation := bean.ExtractOperation(query)
-	if operation == bean.UnknownOperation {
+	exSchema, exTable, operation, ok := bean.ExtractOperation(query)
+	if !ok {
 		return nil
 	}
 	if schema == "" && exSchema != "" {
 		schema = exSchema
 	}
 	bean := bean.NewQuery(schema, exTable, query, operation)
-	metadata := createMetadata(schema, "", logName, event.Header.LogPos, logSeqNum, logTimestamp)
-	if err := r.batchMessage(bean, r.alias, metadata); err != nil {
+	metadata := createMetadata(logName, event.Header.LogPos, logSeqNum, logTimestamp)
+	return r.putToBatch(bean, metadata)
+}
+
+func (r *Listener) putToBatch(bean bean.Bean, metadata map[string]string) error {
+	if bean.Splittable() {
+		mdSize := metadataSize(r.alias, metadata)
+		size := bean.SizeBytes() + mdSize
+		if size > r.maxSize {
+			parts := bean.Split(r.maxSize - mdSize)
+			for _, part := range parts {
+				data, err := part.Serialize()
+				if err != nil {
+					return fmt.Errorf("event part serialization failure: %w", err)
+				}
+
+				if err := r.batchMessage(data, r.alias, metadata); err != nil {
+					return fmt.Errorf("batching event part failure: %w", err)
+				}
+			}
+			return nil
+		}
+	}
+
+	data, err := bean.Serialize()
+	if err != nil {
+		return fmt.Errorf("serialization failure: %w", err)
+	}
+
+	if err := r.batchMessage(data, r.alias, metadata); err != nil {
 		return fmt.Errorf("batching event failure: %w", err)
 	}
 	return nil
 }
 
-func (r *Listener) batchMessage(bean any, alias string, metadata map[string]string) error {
-	data, err := json.Marshal(bean)
-	if err != nil {
-		return fmt.Errorf("marshaling failure: %w", err)
-	}
+func (r *Listener) batchMessage(data []byte, alias string, metadata map[string]string) error {
 	if err := r.batcher.Send(data, b.MessageArguments{
 		Metadata:  metadata,
 		Alias:     alias,
@@ -279,8 +302,16 @@ func (r *Listener) batchMessage(bean any, alias string, metadata map[string]stri
 	}); err != nil {
 		return fmt.Errorf("batching failure: %w", err)
 	}
-	logger.Trace().Msg("Message is sent to batcher")
+	logger.Trace().Msg("message is sent to batcher")
 	return nil
+}
+
+func metadataSize(alias string, metadata map[string]string) int {
+	size := len(alias) + 1 + msgProtocolSize // alias + direction + protocol
+	for k, v := range metadata {
+		size += len(k) + len(v)
+	}
+	return size
 }
 
 func logEvent(event *replication.BinlogEvent) {
@@ -291,7 +322,7 @@ func logEvent(event *replication.BinlogEvent) {
 	}
 }
 
-func createMetadata(schema string, table string, logName string, logPos uint32, logSeqNum int64, logTimestamp time.Time) map[string]string {
+func createMetadata(logName string, logPos uint32, logSeqNum int64, logTimestamp time.Time) map[string]string {
 	return map[string]string{
 		logNameProp:      logName,
 		logPosProp:       fmt.Sprint(logPos),

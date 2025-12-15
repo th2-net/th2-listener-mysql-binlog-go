@@ -17,24 +17,27 @@
 package bean
 
 import (
+	"encoding/json"
+	"strconv"
+
 	"github.com/th2-net/th2-listener-mysql-binlog-go/component/database"
 )
 
-const (
-	insertOperation Operation = "INSERT"
-	updateOperation Operation = "UPDATE"
-	deleteOperation Operation = "DELETE"
-
-	truncateOperation    Operation = "TRUNCATE"
-	createTableOperation Operation = "CREATE_TABLE"
-	dropTableOperation   Operation = "DROP_TABLE"
-	alterTableOperation  Operation = "ALTER_TABLE"
-	UnknownOperation     Operation = "UNKNOWN"
-)
-
 type Operation string
+type Bean interface {
+	// Returns approximate size (bigger or equal than Serialize method return) for instances where Splittable method returns true.
+	// Returns 0 where Splittable method returns false.
+	SizeBytes() int
+	// Returns serialized representation of instance.
+	Serialize() ([]byte, error)
+	// Returns true if the instance can be split.
+	Splittable() bool
+	// Returns parts as close as possible to passed size.
+	Split(size int) []Bean
+}
 
-type Values map[string]interface{}
+type DataMap map[string]any
+type DataSlice []DataMap
 
 type Record struct {
 	Schema    string
@@ -42,51 +45,114 @@ type Record struct {
 	Operation Operation
 }
 
-type Insert struct {
-	Record
-	Inserted []Values
+func (r Record) sizeBytes() int {
+	size := 2                              // {...}
+	size += 9 + jsonSize(r.Schema) + 1     // "Schema":"...",
+	size += 8 + jsonSize(r.Table) + 1      // "Table":"...",
+	size += 12 + jsonSize(r.Operation) + 1 // "Operation":"...",
+	return size
 }
 
-type UpdatePair struct {
-	Before Values
-	After  Values
+func (val DataMap) sizeBytes() int {
+	size := 2            // {...}
+	size += len(val) - 1 // ...,...
+	for k, v := range val {
+		size += jsonSize(k) + 1 + jsonSize(v) // "<k>":"<v>"
+	}
+	return size
 }
 
-type Update struct {
-	Record
-	Updated []UpdatePair
+func jsonSize(value interface{}) int {
+	switch val := value.(type) {
+	case nil:
+		return 4 // null
+	case int, int8, int16, int32, int64:
+		return len(strconv.FormatInt(toInt64(val), 10))
+	case uint, uint8, uint16, uint32, uint64:
+		return len(strconv.FormatUint(toUint64(val), 10))
+	case float32:
+		return len(strconv.FormatFloat(float64(val), 'g', -1, 32))
+	case float64:
+		return len(strconv.FormatFloat(val, 'g', -1, 64))
+	case string:
+		return len(strconv.Quote(val))
+	case Operation:
+		return len(strconv.Quote(string(val)))
+	case []byte:
+		return ((len(val)+2)/3)*4 + 2
+	default:
+		b, _ := json.Marshal(val)
+		return len(b)
+	}
 }
 
-type Delete struct {
-	Record
-	Deleted []Values
+func toInt64(v any) int64 {
+	switch vv := v.(type) {
+	case int:
+		return int64(vv)
+	case int8:
+		return int64(vv)
+	case int16:
+		return int64(vv)
+	case int32:
+		return int64(vv)
+	case int64:
+		return vv
+	}
+	return 0
 }
 
-type Query struct {
-	Record
-	Query string
+func toUint64(v any) uint64 {
+	switch vv := v.(type) {
+	case uint:
+		return uint64(vv)
+	case uint8:
+		return uint64(vv)
+	case uint16:
+		return uint64(vv)
+	case uint32:
+		return uint64(vv)
+	case uint64:
+		return vv
+	}
+	return 0
 }
 
-func NewInsert(schema string, table string, fields []string, rows [][]any) Insert {
-	return Insert{Record: Record{Schema: schema, Table: table, Operation: insertOperation}, Inserted: createValues(fields, rows)}
+func (ds DataSlice) sizeBytes() int {
+	size := len(ds) - 1 // ...,...
+	for _, val := range ds {
+		size += val.sizeBytes()
+	}
+	return size
 }
 
-func NewUpdate(schema string, table string, fields []string, rows [][]any) Update {
-	return Update{Record: Record{Schema: schema, Table: table, Operation: updateOperation}, Updated: createUpdatePairs(fields, rows)}
+func (ds DataSlice) split(baseSize int, maxSize int) []DataSlice {
+	var res []DataSlice
+	var partSize int
+	var part DataSlice
+	for i, val := range ds {
+		valSize := val.sizeBytes()
+		if i == 0 {
+			partSize = baseSize + valSize
+			part = DataSlice{val}
+		} else {
+			if partSize+valSize+1 > maxSize {
+				res = append(res, part)
+				partSize = baseSize + valSize
+				part = DataSlice{val}
+			} else {
+				partSize += valSize + 1 // ...,...
+				part = append(part, val)
+			}
+		}
+	}
+	return append(res, part)
 }
 
-func NewDelete(schema string, table string, fields []string, rows [][]any) Delete {
-	return Delete{Record: Record{Schema: schema, Table: table, Operation: deleteOperation}, Deleted: createValues(fields, rows)}
-}
-
-func NewQuery(schema string, table string, query string, operation Operation) Query {
-	return Query{Record: Record{Schema: schema, Table: table, Operation: operation}, Query: query}
-}
-
-func createValues(tableMetadata database.TableMetadata, rows [][]any) []Values {
-	result := make([]Values, len(rows))
+func createValues(tableMetadata database.TableMetadata, rows [][]any) DataSlice {
+	result := make(DataSlice, len(rows))
 	for index, row := range rows {
-		values := Values{}
+		values := DataMap{}
 		result[index] = values
 		for columnIndex, columnValue := range row {
 			values[tableMetadata[columnIndex]] = columnValue
@@ -95,11 +161,11 @@ func createValues(tableMetadata database.TableMetadata, rows [][]any) []Values {
 	return result
 }
 
-func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{}) []UpdatePair {
+func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]any) []UpdatePair {
 	result := make([]UpdatePair, len(rows)/2)
 	var pair UpdatePair = UpdatePair{}
 	for index, row := range rows {
-		values := Values{}
+		values := DataMap{}
 		for columnIndex, columnValue := range row {
 			values[tableMetadata[columnIndex]] = columnValue
 		}
