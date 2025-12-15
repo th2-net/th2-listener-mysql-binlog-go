@@ -56,11 +56,15 @@ jobs:
       - name: Show nearest tag
         run: echo "${{ steps.nearest-tag.outputs.value }}"
 
+      - name: Extract release version from the nearest tag
+        id: nearest-release-version
+        run: echo "value=$(echo "${{ steps.nearest-tag.outputs.value }}" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')" >> $GITHUB_OUTPUT
+
       - name: Get next release version
         id: version
         uses: HardNorth/github-version-generate@v1.4.0
         with:
-          version: ${{ steps.nearest-tag.outputs.value }}
+          version: ${{ steps.nearest-release-version.outputs.value }}
           next-version-increment-patch: ${{ contains(inputs.update-fragment, 'patch') }}
           next-version-increment-minor: ${{ contains(inputs.update-fragment, 'minor') }}
           next-version-increment-major: ${{ contains(inputs.update-fragment, 'major') }}
