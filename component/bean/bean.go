@@ -25,16 +25,19 @@ import (
 
 type Operation string
 type Bean interface {
-	// Returns approximate size (bigger or equal than Serialize) for Splittable instance
+	// Returns approximate size (bigger or equal than Serialize method return) for instances where Splittable method returns true.
+	// Returns 0 where Splittable method returns false.
 	SizeBytes() int
+	// Returns serialized representation of instance.
 	Serialize() ([]byte, error)
-	// Returns true if instance content allow to execute split
+	// Returns true if the instance can be split.
 	Splittable() bool
-	// Returns parts as close as possible in size.
+	// Returns parts as close as possible to passed size.
 	Split(size int) []Bean
 }
 
-type Values map[string]any
+type DataMap map[string]any
+type DataSlice []DataMap
 
 type Record struct {
 	Schema    string
@@ -50,7 +53,7 @@ func (r Record) sizeBytes() int {
 	return size
 }
 
-func (val Values) sizeBytes() int {
+func (val DataMap) sizeBytes() int {
 	size := 2            // {...}
 	size += len(val) - 1 // ...,...
 	for k, v := range val {
@@ -115,28 +118,28 @@ func toUint64(v any) uint64 {
 	return 0
 }
 
-func sliceValuesSizeBytes(slice []Values) int {
-	size := len(slice) - 1 // ...,...
-	for _, val := range slice {
+func (ds DataSlice) sizeBytes() int {
+	size := len(ds) - 1 // ...,...
+	for _, val := range ds {
 		size += val.sizeBytes()
 	}
 	return size
 }
 
-func sliceValuesSplit(slice []Values, baseSize int, maxSize int) [][]Values {
-	var res [][]Values
+func (ds DataSlice) split(baseSize int, maxSize int) []DataSlice {
+	var res []DataSlice
 	var partSize int
-	var part []Values
-	for i, val := range slice {
+	var part DataSlice
+	for i, val := range ds {
 		valSize := val.sizeBytes()
 		if i == 0 {
 			partSize = baseSize + valSize
-			part = []Values{val}
+			part = DataSlice{val}
 		} else {
 			if partSize+valSize+1 > maxSize {
 				res = append(res, part)
 				partSize = baseSize + valSize
-				part = []Values{val}
+				part = DataSlice{val}
 			} else {
 				partSize += valSize + 1 // ...,...
 				part = append(part, val)
@@ -146,10 +149,10 @@ func sliceValuesSplit(slice []Values, baseSize int, maxSize int) [][]Values {
 	return append(res, part)
 }
 
-func createValues(tableMetadata database.TableMetadata, rows [][]any) []Values {
-	result := make([]Values, len(rows))
+func createValues(tableMetadata database.TableMetadata, rows [][]any) DataSlice {
+	result := make(DataSlice, len(rows))
 	for index, row := range rows {
-		values := Values{}
+		values := DataMap{}
 		result[index] = values
 		for columnIndex, columnValue := range row {
 			values[tableMetadata[columnIndex]] = columnValue
@@ -162,7 +165,7 @@ func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]any) []Upd
 	result := make([]UpdatePair, len(rows)/2)
 	var pair UpdatePair = UpdatePair{}
 	for index, row := range rows {
-		values := Values{}
+		values := DataMap{}
 		for columnIndex, columnValue := range row {
 			values[tableMetadata[columnIndex]] = columnValue
 		}

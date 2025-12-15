@@ -26,7 +26,7 @@ const (
 
 type Insert struct {
 	Record
-	Inserted []Values
+	Inserted DataSlice
 }
 
 func NewInsert(schema string, table string, fields []string, rows [][]any) Insert {
@@ -37,7 +37,7 @@ func (b Insert) SizeBytes() int {
 	if !b.Splittable() {
 		return 0
 	}
-	return b.baseSize() + sliceValuesSizeBytes(b.Inserted)
+	return b.baseSize() + b.Inserted.sizeBytes()
 }
 
 func (b Insert) Serialize() ([]byte, error) {
@@ -52,8 +52,8 @@ func (b Insert) Split(size int) []Bean {
 	if !b.Splittable() {
 		return []Bean{b}
 	}
-	
-	parts := sliceValuesSplit(b.Inserted, b.baseSize(), size)
+
+	parts := b.Inserted.split(b.baseSize(), size)
 	res := make([]Bean, len(parts))
 	for i, part := range parts {
 		res[i] = Insert{Record: b.Record, Inserted: part}

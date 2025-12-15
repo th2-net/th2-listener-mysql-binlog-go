@@ -26,7 +26,7 @@ const (
 
 type Delete struct {
 	Record
-	Deleted []Values
+	Deleted DataSlice
 }
 
 func NewDelete(schema string, table string, fields []string, rows [][]any) Delete {
@@ -37,7 +37,7 @@ func (b Delete) SizeBytes() int {
 	if !b.Splittable() {
 		return 0
 	}
-	return b.baseSize() + sliceValuesSizeBytes(b.Deleted)
+	return b.baseSize() + b.Deleted.sizeBytes()
 }
 
 func (b Delete) Serialize() ([]byte, error) {
@@ -53,7 +53,7 @@ func (b Delete) Split(size int) []Bean {
 		return []Bean{b}
 	}
 
-	parts := sliceValuesSplit(b.Deleted, b.baseSize(), size)
+	parts := b.Deleted.split(b.baseSize(), size)
 	res := make([]Bean, len(parts))
 	for i, part := range parts {
 		res[i] = Insert{Record: b.Record, Inserted: part}

@@ -25,8 +25,8 @@ const (
 )
 
 type UpdatePair struct {
-	Before Values
-	After  Values
+	Before DataMap
+	After  DataMap
 }
 
 type Update struct {

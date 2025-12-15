@@ -41,7 +41,8 @@ const (
 	logSeqNumProp    = "seq"
 	logTimestampProp = "timestamp"
 
-	msgProtocol = "json"
+	msgProtocol     = "json"
+	msgProtocolSize = len("json")
 
 	// The 1236 error can occur due to incorrect or missing log files or positions in replication.
 	mysql1236              = 1236
@@ -238,7 +239,7 @@ func (r *Listener) processRowsEvent(event *replication.BinlogEvent, logName stri
 		return nil
 	}
 	bean := createBean(schema, table, fields, rowsEvent.Rows)
-	metadata := createMetadata(schema, table, logName, event.Header.LogPos, logSeqNum, logTimestamp)
+	metadata := createMetadata(logName, event.Header.LogPos, logSeqNum, logTimestamp)
 	return r.putToBatch(bean, metadata)
 }
 
@@ -257,15 +258,16 @@ func (r *Listener) processQueryEvent(event *replication.BinlogEvent, logName str
 		schema = exSchema
 	}
 	bean := bean.NewQuery(schema, exTable, query, operation)
-	metadata := createMetadata(schema, "", logName, event.Header.LogPos, logSeqNum, logTimestamp)
+	metadata := createMetadata(logName, event.Header.LogPos, logSeqNum, logTimestamp)
 	return r.putToBatch(bean, metadata)
 }
 
 func (r *Listener) putToBatch(bean bean.Bean, metadata map[string]string) error {
 	if bean.Splittable() {
-		size := bean.SizeBytes()
+		mdSize := metadataSize(r.alias, metadata)
+		size := bean.SizeBytes() + mdSize
 		if size > r.maxSize {
-			parts := bean.Split(r.maxSize)
+			parts := bean.Split(r.maxSize - mdSize)
 			for _, part := range parts {
 				data, err := part.Serialize()
 				if err != nil {
@@ -304,6 +306,14 @@ func (r *Listener) batchMessage(data []byte, alias string, metadata map[string]s
 	return nil
 }
 
+func metadataSize(alias string, metadata map[string]string) int {
+	size := len(alias) + 1 + msgProtocolSize // alias + direction + protocol
+	for k, v := range metadata {
+		size += len(k) + len(v)
+	}
+	return size
+}
+
 func logEvent(event *replication.BinlogEvent) {
 	if logger.Debug().Enabled() {
 		buf := new(bytes.Buffer)
@@ -312,7 +322,7 @@ func logEvent(event *replication.BinlogEvent) {
 	}
 }
 
-func createMetadata(schema string, table string, logName string, logPos uint32, logSeqNum int64, logTimestamp time.Time) map[string]string {
+func createMetadata(logName string, logPos uint32, logSeqNum int64, logTimestamp time.Time) map[string]string {
 	return map[string]string{
 		logNameProp:      logName,
 		logPosProp:       fmt.Sprint(logPos),
