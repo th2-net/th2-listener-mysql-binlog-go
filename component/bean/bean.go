@@ -17,7 +17,8 @@
 package bean
 
 import (
-	"fmt"
+	"encoding/json"
+	"strconv"
 
 	"github.com/th2-net/th2-listener-mysql-binlog-go/component/database"
 )
@@ -33,7 +34,7 @@ type Bean interface {
 	Split(size int) []Bean
 }
 
-type Values map[string]interface{}
+type Values map[string]any
 
 type Record struct {
 	Schema    string
@@ -42,10 +43,10 @@ type Record struct {
 }
 
 func (r Record) sizeBytes() int {
-	size := 2                         // {...}
-	size += 10 + len(r.Schema) + 2    // "Schema":"...",
-	size += 9 + len(r.Table) + 2      // "Table":"...",
-	size += 13 + len(r.Operation) + 2 // "Operation":"...",
+	size := 2                              // {...}
+	size += 9 + jsonSize(r.Schema) + 1     // "Schema":"...",
+	size += 8 + jsonSize(r.Table) + 1      // "Table":"...",
+	size += 12 + jsonSize(r.Operation) + 1 // "Operation":"...",
 	return size
 }
 
@@ -53,9 +54,65 @@ func (val Values) sizeBytes() int {
 	size := 2            // {...}
 	size += len(val) - 1 // ...,...
 	for k, v := range val {
-		size += 1 + len(k) + 3 + len(fmt.Sprintf("%v", v)) + 1 // "<k>":"<v>"
+		size += jsonSize(k) + 1 + jsonSize(v) // "<k>":"<v>"
 	}
 	return size
+}
+
+func jsonSize(value interface{}) int {
+	switch val := value.(type) {
+	case nil:
+		return 4 // null
+	case int, int8, int16, int32, int64:
+		return len(strconv.FormatInt(toInt64(val), 10))
+	case uint, uint8, uint16, uint32, uint64:
+		return len(strconv.FormatUint(toUint64(val), 10))
+	case float32:
+		return len(strconv.FormatFloat(float64(val), 'g', -1, 32))
+	case float64:
+		return len(strconv.FormatFloat(val, 'g', -1, 64))
+	case string:
+		return len(strconv.Quote(val))
+	case Operation:
+		return len(strconv.Quote(string(val)))
+	case []byte:
+		return ((len(val)+2)/3)*4 + 2
+	default:
+		b, _ := json.Marshal(val)
+		return len(b)
+	}
+}
+
+func toInt64(v any) int64 {
+	switch vv := v.(type) {
+	case int:
+		return int64(vv)
+	case int8:
+		return int64(vv)
+	case int16:
+		return int64(vv)
+	case int32:
+		return int64(vv)
+	case int64:
+		return vv
+	}
+	return 0
+}
+
+func toUint64(v any) uint64 {
+	switch vv := v.(type) {
+	case uint:
+		return uint64(vv)
+	case uint8:
+		return uint64(vv)
+	case uint16:
+		return uint64(vv)
+	case uint32:
+		return uint64(vv)
+	case uint64:
+		return vv
+	}
+	return 0
 }
 
 func sliceValuesSizeBytes(slice []Values) int {
@@ -101,7 +158,7 @@ func createValues(tableMetadata database.TableMetadata, rows [][]any) []Values {
 	return result
 }
 
-func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]interface{}) []UpdatePair {
+func createUpdatePairs(tableMetadata database.TableMetadata, rows [][]any) []UpdatePair {
 	result := make([]UpdatePair, len(rows)/2)
 	var pair UpdatePair = UpdatePair{}
 	for index, row := range rows {
