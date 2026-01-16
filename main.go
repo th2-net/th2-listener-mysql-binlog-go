@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Exactpro (Exactpro Systems Limited)
+ * Copyright 2024-2026 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,6 +106,8 @@ func main() {
 		MqBatcherConfig: batcher.MqBatcherConfig{
 			Book:           componentConf.Book,
 			BatchSizeBytes: maxSize,
+			ChannelSize:    component.DefaultIfEmpty(conf.MessageBatcher.ChannelSize, 0, batcher.DefaultChanelSize),
+			FlushMillis:    component.DefaultIfEmpty(conf.MessageBatcher.FlushMillis, 0, batcher.DefaultFlushTime),
 		},
 		Group:    group,
 		Protocol: PROTOCOL,
@@ -155,6 +157,6 @@ func getStreamParameters(conf conf.Configuration) (string, string, error) {
 	if len(alias) == 0 {
 		return "", "", errors.New("alias can't be empty")
 	}
-	group := component.OrDefaultIfEmpty(conf.Group, conf.Alias)
+	group := component.DefaultIfEmpty(conf.Group, "", conf.Alias)
 	return group, alias, nil
 }

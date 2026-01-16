@@ -245,6 +245,7 @@ Example:
 
 * **Connection** (required) - mysql connection settings
 * **Schemas** (required) - schema to tables dictionary for observing
+* **MessageBatcher** (optional) - message batcher parameters
 * **Alias** (required) - th2 session alias.
 * **Group** (optional) - th2 session group. Default value is value of `Alias` option
 
@@ -255,7 +256,7 @@ Example:
 
 th2 CR example
 
-```yml
+```yml {"language":"yml"}
 apiVersion: th2.exactpro.com/v2
 kind: Th2Box
 metadata:
@@ -274,6 +275,9 @@ spec:
     Schemas:
       mydb: 
         - mytable
+    MessageBatcher:
+      ChannelSize: 1
+      FlushMillis: 1000
     Alias: mysql_A_01
     Group: mysql_G_01
   pins:
@@ -306,6 +310,10 @@ spec:
       requests:
         cpu: 200m
         memory: 200Mi
+```
+
+```yml
+
 ```
 
 ## useful links:

@@ -1,5 +1,5 @@
 /*
- Copyright 2025 Exactpro (Exactpro Systems Limited)
+ Copyright 2026 Exactpro (Exactpro Systems Limited)
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package component
 
-func OrDefaultIfEmpty(value, def string) string {
-	if len(value) == 0 {
+func DefaultIfEmpty[T comparable](val, empty, def T) T {
+	if val == empty {
 		return def
 	}
-	return value
+	return val
 }

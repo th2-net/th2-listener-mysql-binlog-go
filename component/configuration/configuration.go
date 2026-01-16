@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 Exactpro (Exactpro Systems Limited)
+ * Copyright 2024-2026 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,11 @@
 
 package configuration
 
+type MessageBatcher struct {
+	ChannelSize    int
+	FlushMillis    uint64
+}
+
 type Connection struct {
 	Host     string
 	Port     uint16
@@ -26,8 +31,9 @@ type Connection struct {
 type SchemasConf = map[string][]string
 
 type Configuration struct {
-	Connection Connection
-	Schemas    SchemasConf
-	Group      string
-	Alias      string
+	Connection     Connection
+	Schemas        SchemasConf
+	MessageBatcher MessageBatcher
+	Group          string
+	Alias          string
 }
