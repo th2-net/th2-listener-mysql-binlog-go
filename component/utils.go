@@ -16,9 +16,9 @@
 
 package component
 
-func OrDefaultIfEmpty(value, def string) string {
-	if len(value) == 0 {
+func DefaultIfEmpty[T comparable](val, empty, def T) T {
+	if val == empty {
 		return def
 	}
-	return value
+	return val
 }

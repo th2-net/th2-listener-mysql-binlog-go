@@ -16,6 +16,11 @@
 
 package configuration
 
+type MessageBatcher struct {
+	ChannelSize    int
+	FlushMillis    uint64
+}
+
 type Connection struct {
 	Host     string
 	Port     uint16
@@ -26,8 +31,9 @@ type Connection struct {
 type SchemasConf = map[string][]string
 
 type Configuration struct {
-	Connection Connection
-	Schemas    SchemasConf
-	Group      string
-	Alias      string
+	Connection     Connection
+	Schemas        SchemasConf
+	MessageBatcher MessageBatcher
+	Group          string
+	Alias          string
 }
