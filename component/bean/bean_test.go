@@ -25,17 +25,13 @@ import (
 )
 
 const (
-	minLen    = 5
-	maxLen    = 50
-	minWidth  = 5
-	maxWidth  = 15
-	minHeight = 1
-	maxHeight = 10
-	letters   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	minLen  = 5
+	maxLen  = 50
+	letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 var (
-	seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 	randTypes  []randAny
 )
 
@@ -51,7 +47,7 @@ func init() {
 	}
 }
 
-func TestSizeBytesVsSerialized(t *testing.T) {
+func TestSizeBytesVsSerializedWhenSplittable(t *testing.T) {
 	tests := []struct {
 		name    string
 		newBean func() bean.Bean
@@ -61,7 +57,7 @@ func TestSizeBytesVsSerialized(t *testing.T) {
 			newBean: func() bean.Bean {
 				schema := randString()
 				table := randString()
-				fields, rows := randRows()
+				fields, rows := randRowsM(randIntM(1, 10), randIntM(2, 10))
 				return bean.NewInsert(schema, table, fields, rows)
 			},
 		},
@@ -70,7 +66,7 @@ func TestSizeBytesVsSerialized(t *testing.T) {
 			newBean: func() bean.Bean {
 				schema := randString()
 				table := randString()
-				fields, rows := randRows()
+				fields, rows := randRowsM(randIntM(1, 10), randIntM(2, 10))
 				return bean.NewDelete(schema, table, fields, rows)
 			},
 		},
@@ -78,14 +74,56 @@ func TestSizeBytesVsSerialized(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bean := tc.newBean()
-			size := bean.SizeBytes()
-			data, err := bean.Serialize()
+			newBean := tc.newBean()
+			if !newBean.Splittable() {
+				t.Fatal("bean must be splittable")
+			}
+			size := newBean.SizeBytes()
+			data, err := newBean.Serialize()
 			if err != nil {
 				t.Fatal(err)
 			}
-			if int(size) < len(data) {
+			if size < len(data) {
 				t.Fatalf("size calculated: %d, serialized: %d, data: %s", size, len(data), string(data))
+			}
+		})
+	}
+}
+
+func TestSerializedSizeWhenNotSplittable(t *testing.T) {
+	tests := []struct {
+		name    string
+		newBean func() bean.Bean
+	}{
+		{
+			name: "insert",
+			newBean: func() bean.Bean {
+				schema := randString()
+				table := randString()
+				fields, rows := randRowsM(randIntM(1, 10), 1)
+				return bean.NewInsert(schema, table, fields, rows)
+			},
+		},
+		{
+			name: "delete",
+			newBean: func() bean.Bean {
+				schema := randString()
+				table := randString()
+				fields, rows := randRowsM(randIntM(1, 10), 1)
+				return bean.NewDelete(schema, table, fields, rows)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			newBean := tc.newBean()
+			//if newBean.Splittable() {
+			if newBean.Splittable() {
+				t.Fatal("bean must not be splittable")
+			}
+			if newBean.SizeBytes() != 0 {
+				t.Fatalf("size expected: 0, got: %d", newBean.SizeBytes())
 			}
 		})
 	}
@@ -102,7 +140,7 @@ func TestSplittable(t *testing.T) {
 			newBean: func() bean.Bean {
 				schema := randString()
 				table := randString()
-				fields, rows := randRowsM(randIntM(minWidth, maxWidth), randIntM(2, maxHeight))
+				fields, rows := randRowsM(randIntM(1, 10), randIntM(2, 10))
 				return bean.NewInsert(schema, table, fields, rows)
 			},
 			splittable: true,
@@ -112,7 +150,7 @@ func TestSplittable(t *testing.T) {
 			newBean: func() bean.Bean {
 				schema := randString()
 				table := randString()
-				fields, rows := randRowsM(randIntM(minWidth, maxWidth), 1)
+				fields, rows := randRowsM(randIntM(1, 10), 1)
 				return bean.NewInsert(schema, table, fields, rows)
 			},
 			splittable: false,
@@ -122,7 +160,7 @@ func TestSplittable(t *testing.T) {
 			newBean: func() bean.Bean {
 				schema := randString()
 				table := randString()
-				fields, rows := randRowsM(randIntM(minWidth, maxWidth), randIntM(2, maxHeight))
+				fields, rows := randRowsM(randIntM(1, 10), randIntM(2, 10))
 				return bean.NewDelete(schema, table, fields, rows)
 			},
 			splittable: true,
@@ -132,7 +170,7 @@ func TestSplittable(t *testing.T) {
 			newBean: func() bean.Bean {
 				schema := randString()
 				table := randString()
-				fields, rows := randRowsM(randIntM(minWidth, maxWidth), 1)
+				fields, rows := randRowsM(randIntM(1, 10), 1)
 				return bean.NewDelete(schema, table, fields, rows)
 			},
 			splittable: false,
@@ -142,7 +180,7 @@ func TestSplittable(t *testing.T) {
 			newBean: func() bean.Bean {
 				schema := randString()
 				table := randString()
-				fields, rows := randRows()
+				fields, rows := randRowsM(randIntM(1, 10), 1)
 				return bean.NewUpdate(schema, table, fields, rows)
 			},
 			splittable: false,
@@ -162,17 +200,17 @@ func TestSplittable(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			bean := tc.newBean()
-			splittable := bean.Splittable()
+			newBean := tc.newBean()
+			splittable := newBean.Splittable()
 			if tc.splittable != splittable {
-				t.Fatalf("splittable expected: %v, got: %v, bean: %v", tc.splittable, splittable, bean)
+				t.Fatalf("splittable expected: %v, got: %v, bean: %v", tc.splittable, splittable, newBean)
 			}
-			size := bean.SizeBytes()
+			size := newBean.SizeBytes()
 			if tc.splittable && size <= 0 {
-				t.Fatalf("size expected > 0, got: %d, bean: %v", size, bean)
+				t.Fatalf("size expected > 0, got: %d, bean: %v", size, newBean)
 			}
 			if !tc.splittable && size != 0 {
-				t.Fatalf("size expected = 0, got: %d, bean: %v", size, bean)
+				t.Fatalf("size expected = 0, got: %d, bean: %v", size, newBean)
 			}
 		})
 	}
@@ -222,10 +260,4 @@ func randRowsM(width, height int) ([]string, [][]any) {
 		rows[i] = row
 	}
 	return fields, rows
-}
-
-func randRows() ([]string, [][]any) {
-	width := randIntM(minWidth, maxWidth)
-	height := randIntM(minHeight, maxHeight)
-	return randRowsM(width, height)
 }

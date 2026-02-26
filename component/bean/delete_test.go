@@ -25,7 +25,7 @@ import (
 func TestDeleteSplit(t *testing.T) {
 	schema := randString()
 	table := randString()
-	fields, rows := randRowsM(randIntM(minWidth, maxWidth), randIntM(2, maxHeight))
+	fields, rows := randRowsM(randIntM(1, 10), randIntM(2, 10))
 	baseDelete := bean.NewDelete(schema, table, fields, rows)
 
 	size := baseDelete.SizeBytes()
