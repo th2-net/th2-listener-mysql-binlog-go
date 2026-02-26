@@ -1,6 +1,6 @@
 module github.com/th2-net/th2-listener-mysql-binlog-go
 
-go 1.25.5
+go 1.26.0
 
 require (
 	github.com/th2-net/th2-common-go v0.4.0
